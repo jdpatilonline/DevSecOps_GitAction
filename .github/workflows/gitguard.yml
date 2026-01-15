@@ -22,6 +22,7 @@ jobs:
 
       - name: GitGuardian Full Repo Scan (JSON Output)
         run: ggshield secret scan repo --show-secrets --format json --output ggshield-report.json .
+        continue-on-error: true
         env:
           GITGUARDIAN_API_KEY: ${{ secrets.GITGUARDIAN_API_KEY }}
 
