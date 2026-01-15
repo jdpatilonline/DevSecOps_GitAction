@@ -1,6 +1,11 @@
 name: GitGuardian scan
 
-on: [push, pull_request]
+on: 
+  # Run on pushes and pull requests
+  push:
+  pull_request:
+  # Allow manual triggers too
+  workflow_dispatch:
 
 jobs:
   scanning:
@@ -12,14 +17,10 @@ jobs:
         with:
           fetch-depth: 0 # Crucial: fetch all history for  full scans
       
-      - name: GitGuardian scan
-        uses: GitGuardian/ggshield/actions/secret@v1.46.0
-        with:
-          args: -vv
-        env:
-          GITHUB_PUSH_BEFORE_SHA: ${{ github.event.before }}
-          GITHUB_PUSH_BASE_SHA: ${{ github.event.base }}
-          GITHUB_PULL_BASE_SHA: ${{ github.event.pull_request.base.sha }}
-          GITHUB_DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
-          GITGUARDIAN_API_KEY: ${{ secrets.GITGUARDIAN_API_KEY }}
+      - name: GitGuardian Full scan
+        uses: GitGuardian/ggshield/actions/setup@v1.46.0
+
+      - name: Run full repository scan (history + working tree)
         run: ggshield secret scan repo --all --show-secrets .
+        env:
+          GITGUARDIAN_API_KEY: ${{ secrets.GITGUARDIAN_API_KEY }}
