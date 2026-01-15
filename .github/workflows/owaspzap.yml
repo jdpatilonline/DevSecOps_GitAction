@@ -1,15 +1,15 @@
-
-
 name: ZAP Baseline Scan
 
 on:
   push:
+    branches: [ main ]
   pull_request:
+    branches: [ main ]
   workflow_dispatch:
 
 permissions:
- contents: read
- actions: write
+  contents: read
+  actions: write
 
 jobs:
   zap_scan:
@@ -24,12 +24,12 @@ jobs:
         uses: zaproxy/action-baseline@v0.10.0
         with:
           target: 'http://testphp.vulnweb.com'
-          cmd_options: '-a'     #  Include active checks
-          format: 'html'        # Generate HTML report
+          cmd_options: '-a'
+          format: 'html'
           report_file_name: 'zap-report.html'
 
-      # Upload HTML Report
       - name: Upload HTML Artifact
+        if: github.event_name == 'push'   # avoid fork PR issues
         uses: actions/upload-artifact@v4
         with:
           name: zap-html-report
