@@ -30,13 +30,13 @@ jobs:
       - name: SonarCloud Scan
         uses: SonarSource/sonarcloud-github-action@v2
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} #auto‑provided by GitHub
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         with:
           args: >
-            -Dsonar.organization=sonarcloudqualitycheck
-            -Dsonar.projectKey=jitu234392_sonarcloud
-            -Dsonar.projectName=sonarcloud-demo
+            -Dsonar.organization=jdpatilonline
+            -Dsonar.projectKey=jdpatilonline_DevSecOps_GitAction
+            -Dsonar.projectName=DevSecOps_GitAction
             -Dsonar.sources=.
             -Dsonar.exclusions=**/tests/**,**/docs/**,**/vendor/**,**/*.md
             -Dsonar.sourceEncoding=UTF-8
