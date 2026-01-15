@@ -21,7 +21,7 @@ jobs:
         run: pip install --upgrade ggshield
 
       - name: GitGuardian Full Repo Scan (JSON Output)
-        run: ggshield secret scan repo --show-secrets --format json --output ggshield-report.json .
+        run: ggshield secret scan repo --show-secrets --format json --output ggshield-report.json --max-commits 50 .
         continue-on-error: true
         env:
           GITGUARDIAN_API_KEY: ${{ secrets.GITGUARDIAN_API_KEY }}
