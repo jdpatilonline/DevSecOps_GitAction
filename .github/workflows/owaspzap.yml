@@ -3,9 +3,9 @@
 name: ZAP Baseline Scan
 
 on:
-  workflow_dispatch:
   push:
-    branches: [ main ]
+  pull_request:
+  workflow_dispatch:
 
 jobs:
   zap_scan:
