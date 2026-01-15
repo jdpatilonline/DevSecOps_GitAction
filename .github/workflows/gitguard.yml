@@ -21,7 +21,7 @@ jobs:
         run: pip install --upgrade ggshield
 
       - name: GitGuardian Full Repo Scan (JSON Output)
-        run: ggshield secret scan repo --show-secrets --format json --output ggshield-report.json src/Test.txt
+        run: ggshield secret scan repo --show-secrets --format json --output ggshield-report.json path src/Test.txt
         #run: ggshield secret scan repo --show-secrets --format json --output ggshield-report.json . # scan for whole repo.
         continue-on-error: true
         env:
