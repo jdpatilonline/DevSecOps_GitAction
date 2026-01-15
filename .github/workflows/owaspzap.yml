@@ -10,6 +10,7 @@ on:
 permissions:
   contents: read
   actions: write
+  security-events: write
 
 jobs:
   zap_scan:
@@ -29,8 +30,7 @@ jobs:
           report_file_name: 'zap-report.html'
 
       - name: Upload HTML Artifact
-        if: github.event_name == 'push'   # avoid fork PR issues
-        uses: actions/upload-artifact@v4
+        if: ${{ github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository }}        uses: actions/upload-artifact@v4
         with:
           name: zap-html-report
           path: zap-report.html
