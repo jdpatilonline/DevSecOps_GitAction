@@ -10,7 +10,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
         with:
-          fetch-depth: 0 # Crucial: fetch all history for full scans
+          fetch-depth: 0 # Crucial: fetch all history for  full scans
       
       - name: GitGuardian scan
         uses: GitGuardian/ggshield/actions/secret@v1.46.0
