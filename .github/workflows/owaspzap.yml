@@ -27,10 +27,3 @@ jobs:
       # List files in the workspace to confirm report exists
       - name: List files
         run: ls -al
-
-      # Print the ZAP report to the workflow logs
-      - name: Show ZAP Report
-        run: cat zap-report.html
-        with:
-          name: zap-report
-          path: zap-report.html
