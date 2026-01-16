@@ -1,6 +1,7 @@
-name: Snyk Security Scan (PHP)
+name: Snyk Docker Security Scan
 
 on:
+  push:
   workflow_dispatch:
 
 permissions:
@@ -8,32 +9,28 @@ permissions:
   security-events: write
 
 jobs:
-  snyk_scan:
+  snyk_docker_scan:
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up PHP
-        uses: shivammathur/setup-php@v2
-        with:
-          php-version: '8.2'   # adjust to your project’s PHP version
+      # Build your Docker image
+      - name: Build Docker image
+        run: docker build -t my-php-app:latest -f Dockerfile .
 
-      - name: Install Composer
-        run: |
-          curl -sS https://getcomposer.org/installer | php
-          php composer.phar install --no-progress --no-suggest --prefer-dist
-
-      - name: Run Snyk Scan
-        uses: snyk/actions/php@master
+      # Run Snyk scan against the built image
+      - name: Run Snyk Container Scan
+        uses: snyk/actions/docker@master
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         with:
-          args: test --file=composer.lock --json-file-output=snyk-report.json
+          args: test my-php-app:latest --json-file-output=snyk-report.json
 
+      # Upload the full report as an artifact
       - name: Upload Snyk Report
         uses: actions/upload-artifact@v4
         with:
-          name: snyk-report
+          name: snyk-docker-report
           path: snyk-report.json
