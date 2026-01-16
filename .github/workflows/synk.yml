@@ -1,37 +1,38 @@
-name: ZAP Baseline Scan
+name: Snyk Project File Scan
 
 on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
   workflow_dispatch:
 
 permissions:
   contents: read
-  actions: write
   security-events: write
 
 jobs:
-  zap_scan:
+  snyk_file_scan:
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Run ZAP Baseline Scan
-        uses: zaproxy/action-baseline@v0.10.0
+      # Run Snyk scan directly on project files (no build)
+      - name: Run Snyk Scan on Project Files
+        uses: snyk/actions/setup@master
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         with:
-          target: 'http://testphp.vulnweb.com'
-          cmd_options: '-a'
-          format: 'html'
-          report_file_name: 'zap-report.html'
+          # Option 1: Scan the Dockerfile only
+          args: test --dockerfile=Dockerfile .
 
-      # List files in the workspace to confirm report exists
-      - name: List files
-        run: ls -l
+          # Option 2: Scan all manifests in the repo
+          # args: test --all-projects --json-file-output=snyk-report.json
 
-      # Print the ZAP report to the workflow logs
-      - name: Show ZAP Report
-        run: cat zap-report.html
-
+      - name: Upload Snyk Report
+        uses: actions/upload-artifact@v4
         with:
-          name: zap-report
-          path: zap-report.html
+          name: snyk-report
+          path: snyk-report.json
