@@ -20,17 +20,17 @@ jobs:
         run: |
           docker run --rm --user root \
             -e BURP_START_URL=http://testphp.vulnweb.com \
-            -e BURP_REPORT_FILE_PATH=/github/workspace/dastardly-report.xml \
+            -e BURP_REPORT_FILE_PATH=/github/workspace/dastardly-report.html \
             -v ${{ github.workspace }}:/github/workspace \
             public.ecr.aws/portswigger/dastardly:latest
 
       # Show report in logs
       - name: Print Dastardly Report
-        run: cat dastardly-report.xml
+        run: cat dastardly-report.html
 
       # Upload the report as an artifact
       - name: Upload Dastardly Report
         uses: actions/upload-artifact@v4
         with:
           name: dastardly-report
-          path: dastardly-report.xml
+          path: dastardly-report.html
