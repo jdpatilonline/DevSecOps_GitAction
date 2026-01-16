@@ -23,11 +23,14 @@ jobs:
           cmd_options: '-a'
           format: 'html'
           report_file_name: 'zap-report.html'
-          
-    # List files in the workspace to confirm report exists
+
+      # List files in the workspace to confirm report exists
       - name: List files
         run: ls -l
 
       # Print the ZAP report to the workflow logs
       - name: Show ZAP Report
         run: cat zap-report.html
+        with:
+          name: zap-report
+          path: zap-report.html
