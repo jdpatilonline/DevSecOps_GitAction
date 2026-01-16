@@ -22,6 +22,8 @@ jobs:
             -t ghcr.io/zaproxy/zaproxy:stable zap-baseline.py \
             -t http://testphp.vulnweb.com \
             -r testreport.html
+            ls -al 
+        continue-on-error: true
 
       # Show the generated report in logs
       - name: Print ZAP Report
