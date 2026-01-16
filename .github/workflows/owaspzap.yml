@@ -1,4 +1,4 @@
-name: ZAP Baseline Scan
+name: OWASP ZAP Scan
 
 on:
   workflow_dispatch:   # manual trigger, you can add push/PR if needed
@@ -18,10 +18,9 @@ jobs:
       # Run ZAP Baseline Scan using official Docker image
       - name: Run ZAP Baseline Scan
         run: |
-          docker run -v ${{ github.workspace }}:/zap/wrk/:rw \
+          docker run --rm --user root -v ${{ github.workspace }}:/zap/wrk/:rw \
             -t ghcr.io/zaproxy/zaproxy:stable zap-baseline.py \
-            -t https://www.example.com \
-            -g gen.conf \
+            -t http://testphp.vulnweb.com \
             -r testreport.html
 
       # Show the generated report in logs
