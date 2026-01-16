@@ -23,6 +23,7 @@ jobs:
             -e BURP_REPORT_FILE_PATH=/github/workspace/dastardly-report.html \
             -v ${{ github.workspace }}:/github/workspace \
             public.ecr.aws/portswigger/dastardly:latest
+            ls -al
 
       # Show report in logs
       - name: Print Dastardly Report
