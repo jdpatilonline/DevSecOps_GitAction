@@ -18,7 +18,7 @@ jobs:
       # Run Dastardly scan directly using the public image
       - name: Run Dastardly Scan
         run: |
-          docker run --rm \
+          docker run --rm --user root \
             -e BURP_START_URL=http://testphp.vulnweb.com \
             -e BURP_REPORT_FILE_PATH=/github/workspace/dastardly-report.xml \
             -v ${{ github.workspace }}:/github/workspace \
