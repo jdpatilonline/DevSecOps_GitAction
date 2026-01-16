@@ -1,43 +1,37 @@
-name: Snyk Docker Security Scan
+name: ZAP Baseline Scan
 
 on:
-  push:
   workflow_dispatch:
 
 permissions:
   contents: read
+  actions: write
   security-events: write
 
 jobs:
-  snyk_docker_scan:
+  zap_scan:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # Build your Docker image
-      - name: Build Docker image
-        run: docker build -t my-php-app:latest -f Dockerfile .
-
-      # Verify the image exists
-      - name: List Docker images
-        run: docker images
-
-      # Run Snyk scan against the built image
-      - name: Run Snyk Container Scan
-        uses: snyk/actions/docker@master
-        env:
-          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+      - name: Run ZAP Baseline Scan
+        uses: zaproxy/action-baseline@v0.10.0
         with:
-          args: test my-php-app:latest --json-file-output=snyk-report.json
+          target: 'http://testphp.vulnweb.com'
+          cmd_options: '-a'
+          format: 'html'
+          report_file_name: 'zap-report.html'
 
-      # Show the report in logs (optional)
-      - name: Print Snyk Report
-        run: cat snyk-report.json
+      # List files in the workspace to confirm report exists
+      - name: List files
+        run: ls -l
 
-      # Upload the report as an artifact
-      - name: Upload Snyk Report
-        uses: actions/upload-artifact@v4
+      # Print the ZAP report to the workflow logs
+      - name: Show ZAP Report
+        run: cat zap-report.html
+
         with:
-          name: snyk-docker-report
-          path: snyk-report.json
+          name: zap-report
+          path: zap-report.html
