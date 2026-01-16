@@ -1,4 +1,4 @@
-name: Dastly Scan
+name: Dastardly Scan
 
 on:
   workflow_dispatch:   # manual trigger, you can add push/PR if needed
@@ -8,30 +8,29 @@ permissions:
   security-events: write
 
 jobs:
-  dastly_scan:
+  dastardly_scan:
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # Install Dastly CLI
-      - name: Set up Dastly
+      # Run Dastardly scan directly using the public image
+      - name: Run Dastardly Scan
         run: |
-          curl -sSL https://get.dastly.com/install.sh | bash
-          export PATH=$PATH:$HOME/.dastly/bin
-
-      # Run Dastly scan against target URL
-      - name: Run Dastly Scan
-        run: dastly scan --url http://testphp.vulnweb.com --output dastly-report.json
+          docker run --rm \
+            -e BURP_START_URL=http://testphp.vulnweb.com \
+            -e BURP_REPORT_FILE_PATH=/github/workspace/dastardly-report.xml \
+            -v ${{ github.workspace }}:/github/workspace \
+            public.ecr.aws/portswigger/dastardly:latest
 
       # Show report in logs
-      - name: Print Dastly Report
-        run: cat dastly-report.json
+      - name: Print Dastardly Report
+        run: cat dastardly-report.xml
 
       # Upload the report as an artifact
-      - name: Upload Dastly Report
+      - name: Upload Dastardly Report
         uses: actions/upload-artifact@v4
         with:
-          name: dastly-report
-          path: dastly-report.json
+          name: dastardly-report
+          path: dastardly-report.xml
