@@ -1,0 +1,37 @@
+name: Dastly Scan
+
+on:
+  workflow_dispatch:   # manual trigger, you can add push/PR if needed
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  dastly_scan:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # Install Dastly CLI
+      - name: Set up Dastly
+        run: |
+          curl -sSL https://get.dastly.com/install.sh | bash
+          export PATH=$PATH:$HOME/.dastly/bin
+
+      # Run Dastly scan against target URL
+      - name: Run Dastly Scan
+        run: dastly scan --url http://testphp.vulnweb.com --output dastly-report.json
+
+      # Show report in logs
+      - name: Print Dastly Report
+        run: cat dastly-report.json
+
+      # Upload the report as an artifact
+      - name: Upload Dastly Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: dastly-report
+          path: dastly-report.json
