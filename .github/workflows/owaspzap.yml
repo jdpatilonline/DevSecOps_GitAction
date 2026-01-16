@@ -23,9 +23,11 @@ jobs:
           cmd_options: '-a'
           format: 'html'
           report_file_name: 'zap-report.html'
+          
+    # List files in the workspace to confirm report exists
+      - name: List files
+        run: ls -l
 
-      - name: Upload ZAP HTML Report
-        uses: actions/upload-artifact@v4
-        with:
-          name: zap-html-report
-          path: zap-report.html
+      # Print the ZAP report to the workflow logs
+      - name: Show ZAP Report
+        run: cat zap-report.html
