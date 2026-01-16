@@ -1,12 +1,12 @@
 name: SonarCloud Analysis with Quality Gate
 
 on:
-  push:
-    branches:
-      - main
-      - maitreyrbhatt-patch-1
-  pull_request:
-    types: [opened, synchronize, reopened]
+#  push:
+#    branches:
+#      - main
+#      - maitreyrbhatt-patch-1
+#  pull_request:
+#    types: [opened, synchronize, reopened]
 
 jobs:
   sonarcloud:
