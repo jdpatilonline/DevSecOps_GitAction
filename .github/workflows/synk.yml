@@ -11,7 +11,6 @@ permissions:
 jobs:
   snyk_docker_scan:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -19,6 +18,10 @@ jobs:
       # Build your Docker image
       - name: Build Docker image
         run: docker build -t my-php-app:latest -f Dockerfile .
+
+      # Verify the image exists
+      - name: List Docker images
+        run: docker images
 
       # Run Snyk scan against the built image
       - name: Run Snyk Container Scan
@@ -28,7 +31,11 @@ jobs:
         with:
           args: test my-php-app:latest --json-file-output=snyk-report.json
 
-      # Upload the full report as an artifact
+      # Show the report in logs (optional)
+      - name: Print Snyk Report
+        run: cat snyk-report.json
+
+      # Upload the report as an artifact
       - name: Upload Snyk Report
         uses: actions/upload-artifact@v4
         with:
