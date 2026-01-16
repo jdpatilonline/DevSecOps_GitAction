@@ -27,6 +27,13 @@ jobs:
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
 
+      # use to upload the result to synk dashboard portal
+      - name: Monitor Project in Snyk
+        run: snyk monitor --all-projects
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+
+
       # Upload the report
       - name: Upload Snyk Report
         uses: actions/upload-artifact@v4
