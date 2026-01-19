@@ -19,7 +19,7 @@ jobs:
       - name: Run Dastardly Scan
         run: |
           docker run --rm --user root \
-            -e BURP_START_URL=http://testphp.vulnweb.com \
+            -e BURP_START_URL=http://altoro.testfire.net/ \
             -e BURP_REPORT_FILE_PATH=/github/workspace/dastardly-report.html \
             -v ${{ github.workspace }}:/github/workspace \
             public.ecr.aws/portswigger/dastardly:latest || true
