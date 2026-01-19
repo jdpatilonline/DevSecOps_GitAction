@@ -7,7 +7,7 @@ jobs:
   scans:
     runs-on: ubuntu-latest
     env: 
-      TARGET_URL: "http://altoro.testfire.net/"
+      TARGET_URL: "http://altoro.testfire.net"
       TARGET_HOST_URL: "altoro.testfire.net"
       REPORTS_DIR: reports
 
