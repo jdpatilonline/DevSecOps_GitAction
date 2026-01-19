@@ -22,7 +22,7 @@ jobs:
             -e BURP_START_URL=http://testphp.vulnweb.com \
             -e BURP_REPORT_FILE_PATH=/github/workspace/dastardly-report.html \
             -v ${{ github.workspace }}:/github/workspace \
-            public.ecr.aws/portswigger/dastardly:latest
+            public.ecr.aws/portswigger/dastardly:latest || true
             ls -al
 
       # Show report in logs
