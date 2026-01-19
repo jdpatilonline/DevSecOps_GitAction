@@ -9,57 +9,55 @@ jobs:
     env: 
       TARGET_URL: "http://altoro.testfire.net/"
       TARGET_HOST_URL: "altoro.testfire.net"
+      REPORTS_DIR: reports
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # Run Nikto Scan
-      - name: Run Nikto Scan
+      # ---- Network Scan - Nmap ----
+      - name: Nmap Scan
         run: |
-          mkdir scan
-          docker run --user $(id -u):$(id -g) --rm \
-            -v $(pwd):/scan -i secfigo/nikto:latest \
-            -h $TARGET_HOST_URL \
-            -nointeractive -Tuning 1 -timeout 10 \
-            -output /scan/nikto-output.xml || true
-          ls -al scan
-          cat scan/nikto-output.xml || true
+          mkdir -p $REPORTS_DIR/nmap
+          HOST=$(echo "$TARGET_URL" | sed 's~http[s]*://~~')
+          docker run --rm -v $(pwd)/$REPORTS_DIR/nmap:/data uzyexe/nmap \
+            -Pn -p 80,443 -v -sV -A -oX /data/nmap.xml $HOST || true
+          ls -alR $REPORTS_DIR
+          cat $REPORTS_DIR/nmap/nmap.xml || true
 
-      # Run Nmap Scan
-      - name: Run Nmap Scan
+      # ---- Network Scan - Nikto ----
+      - name: Nikto Scan
         run: |
-          docker run --rm -v $(pwd):/scan uzyexe/nmap \
-            -sS -sV -A -oX /scan/nmap.xml $TARGET_HOST_URL || true
-          ls -al scan
-          cat scan/nmap.xml || true
+          mkdir -p $REPORTS_DIR/nikto
+          HOST=$(echo "$TARGET_URL" | sed 's~http[s]*://~~')
+          docker run --rm -u 0 -v $(pwd)/$REPORTS_DIR/nikto:/report secfigo/nikto \
+            -h $HOST -Tuning 123b -output /report/nikto-output.xml || true
+          ls -alR $REPORTS_DIR
+          cat $REPORTS_DIR/nikto/nikto-output.xml || true
 
-      # Install SSLyze
-      - name: Install SSLyze
-        run: pip install --user sslyze
-
-      # Run SSLyze Scan 
+      # ---- SSLyze Scan ----
       - name: Run SSLyze Scan
         run: |
-          python -m sslyze $TARGET_URL --json_out sslyze-output.json || true
-          ls -al
-          cat sslyze-output.json || true
+          pip install --user sslyze
+          sslyze $TARGET_URL --json_out $REPORTS_DIR/sslyze-output.json || true
+          ls -al $REPORTS_DIR
+          cat $REPORTS_DIR/sslyze-output.json || true
 
-      # Upload reports as artifacts
+      # ---- Upload reports as artifacts ----
       - name: Upload Nikto Report
         uses: actions/upload-artifact@v4
         with:
           name: nikto-report
-          path: scan/nikto-output.xml
+          path: ${{ env.REPORTS_DIR }}/nikto/nikto-output.xml
 
       - name: Upload Nmap Report
         uses: actions/upload-artifact@v4
         with:
           name: nmap-report
-          path: scan/nmap.xml
+          path: ${{ env.REPORTS_DIR }}/nmap/nmap.xml
 
       - name: Upload SSLyze Report
         uses: actions/upload-artifact@v4
         with:
           name: sslyze-report
-          path: sslyze-output.json
+          path: ${{ env.REPORTS_DIR }}/sslyze-output.json
