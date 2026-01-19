@@ -1,0 +1,65 @@
+name: Security Scans
+
+on:
+  workflow_dispatch:   # manual trigger; you can add push/PR if needed
+
+jobs:
+  scans:
+    runs-on: ubuntu-latest
+    env: 
+      TARGET_URL: "http://testphp.vulnweb.com"
+      TARGET_HOST_URL: "testphp.vulnweb.com"
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # Run Nikto Scan
+      - name: Run Nikto Scan
+        run: |
+          docker run --user $(id -u):$(id -g) --rm \
+            -v $(pwd):/scan -i secfigo/nikto:latest \
+            -h $TARGET_HOST_URL \
+            -nointeractive -Tuning 1 -timeout 10 \
+            -output /scan/nikto-output.xml || true
+          ls -al scan
+          cat scan/nikto-output.xml
+
+      # Run Nmap Scan
+      - name: Run Nmap Scan
+        run: |
+          docker run --rm -v $(pwd):/scan uzyexe/nmap \
+            -sS -sV -A -oX /scan/nmap.xml $TARGET_HOST_URL || true
+          ls -al scan
+          cat scan/nmap.xml
+
+      # Install SSLyze
+      - name: Install SSLyze
+        run: pip install --user sslyze==1.4.2
+
+      # Run SSLyze Scan 
+      - name: Run SSLyze Scan
+        run: |
+          python -m sslyze --regular $TARGET_URL \
+            --json_out sslyze-output.json || true
+          ls -al
+          cat sslyze-output.json
+
+      # Upload reports as artifacts
+      - name: Upload Nikto Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: nikto-report
+          path: scan/nikto-output.xml
+
+      - name: Upload Nmap Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: nmap-report
+          path: scan/nmap.xml
+
+      - name: Upload SSLyze Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: sslyze-report
+          path: sslyze-output.json
