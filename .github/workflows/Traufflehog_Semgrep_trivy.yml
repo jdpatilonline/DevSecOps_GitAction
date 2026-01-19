@@ -23,7 +23,7 @@ jobs:
         run: |
           docker run --rm -u 0 -v $(pwd):/scan -v $(pwd):/report aquasec/trivy fs /scan --format json --output /report/trivy-fs-report.json
           ls -al
-          cat cxc/trivy-fs-report.json
+          cat trivy-fs-report.json
         continue-on-error: true
 
       # Run Semgrep Scan
