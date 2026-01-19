@@ -21,9 +21,10 @@ jobs:
       # Run Trivy FS Scan
       - name: Run Trivy FS Scan
         run: |
-          docker run --rm -u 0 -v $(pwd):/scan -v $(pwd):/report aquasec/trivy fs /scan --format json --output /report/trivy-fs-report.json || true
+          docker run --rm -u 0 -v $(pwd):/scan -v $(pwd):/report aquasec/trivy fs /scan --format json --output /report/trivy-fs-report.json
           ls -al
-          cat /report/trivy-fs-report.json
+          cat cxc/trivy-fs-report.json
+        continue-on-error: true
 
       # Run Semgrep Scan
       - name: Run Semgrep Scan
@@ -32,7 +33,7 @@ jobs:
           ls -al
           cat semgrep-report.json
 
-      # Upload reports as artifacts
+      #### Upload reports as artifacts#####
       - name: Upload Trufflehog Report
         uses: actions/upload-artifact@v4
         with:
