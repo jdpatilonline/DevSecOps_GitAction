@@ -7,8 +7,8 @@ jobs:
   scans:
     runs-on: ubuntu-latest
     env: 
-      TARGET_URL: "http://testphp.vulnweb.com"
-      TARGET_HOST_URL: "testphp.vulnweb.com"
+      TARGET_URL: "http://altoro.testfire.net/"
+      TARGET_HOST_URL: "altoro.testfire.net"
 
     steps:
       - name: Checkout repository
@@ -23,7 +23,7 @@ jobs:
             -nointeractive -Tuning 1 -timeout 10 \
             -output /scan/nikto-output.xml || true
           ls -al scan
-          cat scan/nikto-output.xml
+          cat scan/nikto-output.xml || true
 
       # Run Nmap Scan
       - name: Run Nmap Scan
@@ -31,7 +31,7 @@ jobs:
           docker run --rm -v $(pwd):/scan uzyexe/nmap \
             -sS -sV -A -oX /scan/nmap.xml $TARGET_HOST_URL || true
           ls -al scan
-          cat scan/nmap.xml
+          cat scan/nmap.xml || true
 
       # Install SSLyze
       - name: Install SSLyze
@@ -43,7 +43,7 @@ jobs:
           python -m sslyze --regular $TARGET_URL \
             --json_out sslyze-output.json || true
           ls -al
-          cat sslyze-output.json
+          cat sslyze-output.json || true
 
       # Upload reports as artifacts
       - name: Upload Nikto Report
