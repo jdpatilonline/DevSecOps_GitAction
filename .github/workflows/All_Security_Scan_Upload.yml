@@ -49,8 +49,7 @@ jobs:
       - name: Trufflehog Scan
         run: |
           mkdir -p $REPORTS_DIR/trufflehog
-          docker run --rm gesellix/trufflehog --json https://github.com/jdpatilonline/Webapp-DevSecops.git  \
-		  > $REPORTS_DIR/trufflehog/trufflehog.json || true
+          docker run --rm gesellix/trufflehog --json https://github.com/jdpatilonline/Webapp-DevSecops.git > $REPORTS_DIR/trufflehog/trufflehog.json || true
           ls -alR $REPORTS_DIR
 
       # ---- Secret Scan (GitGuardian) ----
