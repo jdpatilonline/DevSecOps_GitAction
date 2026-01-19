@@ -20,18 +20,18 @@ jobs:
         run: |
           docker run --rm --user root \
             -e BURP_START_URL=http://altoro.testfire.net/ \
-            -e BURP_REPORT_FILE_PATH=/github/workspace/dastardly-report.html \
+            -e BURP_REPORT_FILE_PATH=/github/workspace/dastardly-report.xml \
             -v ${{ github.workspace }}:/github/workspace \
             public.ecr.aws/portswigger/dastardly:latest || true
             ls -al
 
       # Show report in logs
       - name: Print Dastardly Report
-        run: cat dastardly-report.html
+        run: cat dastardly-report.xml
 
       # Upload the report as an artifact
       - name: Upload Dastardly Report
         uses: actions/upload-artifact@v4
         with:
           name: dastardly-report
-          path: dastardly-report.html
+          path: dastardly-report.xml
