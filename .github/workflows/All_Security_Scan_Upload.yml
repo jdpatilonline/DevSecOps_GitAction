@@ -1,9 +1,6 @@
 name: Security Scans
 
 on:
-  push:
-    branches:
-      - main
   workflow_dispatch:   # manual trigger also supported
 
 # ---- Global environment variables (shared across all jobs) ----
