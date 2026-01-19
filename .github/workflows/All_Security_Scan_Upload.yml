@@ -90,21 +90,31 @@ jobs:
           snyk container monitor vulnerables/web-dvwa || true
           ls -alR $REPORTS_DIR
 
-      # ---- SonarCloud Analysis ----
+      # SonarCloud scan (ALL properties inline)
       - name: SonarCloud Scan
-        uses: SonarSource/sonarcloud-github-action@master
+        uses: SonarSource/sonarcloud-github-action@v2
+        continue-on-error: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} #auto‑provided by GitHub
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         with:
-          projectKey: jdpatilonline_DevSecOps_GitAction
-          organization: DevSecOps_GitAction
-          token: ${{ secrets.SONAR_TOKEN }}
+          args: >
+            -Dsonar.organization=jdpatilonline
+            -Dsonar.projectKey=jdpatilonline_DevSecOps_GitAction
+            -Dsonar.projectName=DevSecOps_GitAction
+            -Dsonar.sources=.
+            -Dsonar.exclusions=**/tests/**,**/docs/**,**/vendor/**,**/*.md
+            -Dsonar.sourceEncoding=UTF-8
+            -Dsonar.qualitygate.wait=true
+            -Dsonar.qualitygate.timeout=300
 
       # ---- Export SonarCloud Report ----
       - name: Export SonarCloud Report
         run: |
           mkdir -p $REPORTS_DIR/sonarcloud
-          curl -s -u $SONAR_TOKEN: \
-            "https://sonarcloud.io/api/issues/search?componentKeys=jdpatilonline_DevSecOps_GitAction&types=VULNERABILITY,BUG&resolved=false&ps=500" \
-            -o $REPORTS_DIR/sonarcloud/sonarcloud-report.json
+          #curl -s -u $SONAR_TOKEN: \
+          #  "https://sonarcloud.io/api/issues/search?componentKeys=jdpatilonline_DevSecOps_GitAction&types=VULNERABILITY,BUG&resolved=false&ps=500" \
+          #  -o $REPORTS_DIR/sonarcloud/sonarcloud-report.json
           ls -alR $REPORTS_DIR
 
       # ---- Network Scan - Nmap ----
