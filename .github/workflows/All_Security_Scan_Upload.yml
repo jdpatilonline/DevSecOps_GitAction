@@ -1,0 +1,164 @@
+name: Security Scans
+
+on:
+  workflow_dispatch:   # manual trigger; you can add push/PR if needed
+
+# ---- Global environment variables (shared across all jobs) ----
+env:
+  REPORTS_DIR: reports
+  TARGET_URL: "http://testphp.vulnweb.com"
+  DEFECTDOJO_URL: "https://demo.defectdojo.org/api/v2/import-scan/"
+  ENGAGEMENT_NAME: "DAST_pipeline"
+  PRODUCT_TYPE_NAME: "Research and Development"
+  PRODUCT_NAME: "WebApp"
+  System_Debug: true   # renamed to underscore for GitHub Actions compatibility
+
+jobs:
+  security_scans:
+    runs-on: ubuntu-latest
+    env:
+      GITGUARDIAN_API_KEY: ${{ secrets.GITGUARDIAN_API_KEY }}		# GITGUARDIAN_API_KEY
+      SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}							# SNYK_TOKEN
+      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}						# SONAR_TOKEN
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # ---- Secret Scan (Trufflehog) ----
+      - name: Trufflehog Scan
+        run: |
+          mkdir -p $REPORTS_DIR/trufflehog
+          docker run --rm gesellix/trufflehog --json https://github.com/jdpatilonline/Webapp-DevSecops.git > $REPORTS_DIR/trufflehog/trufflehog.json || true
+          ls -alR $REPORTS_DIR
+
+      # ---- Secret Scan (GitGuardian) ----
+      - name: GitGuardian Scan
+        run: |
+          mkdir -p $REPORTS_DIR/GitGuardian
+          pip install ggshield
+          ggshield api-status
+          ggshield secret scan ci || true
+          ls -alR $REPORTS_DIR
+
+      # ---- SCA (Trivy) ----
+      - name: Trivy Scan
+        run: |
+          mkdir -p $REPORTS_DIR/trivy
+          echo "Docker Image Scanning"
+          ls -alR $REPORTS_DIR
+
+      # ---- SAST (Semgrep) ----
+      - name: Semgrep Scan
+        run: |
+          mkdir -p $REPORTS_DIR/semgrep
+          ls -alR $REPORTS_DIR
+
+      # ---- SCA (Snyk) ----
+      - name: Snyk Scan
+        run: |
+          mkdir -p $REPORTS_DIR/Snyk
+          npm install -g snyk
+          snyk auth $SNYK_TOKEN
+          snyk code test --all-projects --json-file-output=$REPORTS_DIR/Snyk/snyk-sca.json || true
+          snyk code test || true
+          snyk monitor --all-projects || true
+          snyk container monitor vulnerables/web-dvwa || true
+          ls -alR $REPORTS_DIR
+
+      # ---- SonarCloud Analysis ----
+      - name: SonarCloud Scan
+        uses: SonarSource/sonarcloud-github-action@master
+        with:
+          projectKey: azure-devsecops-sonar-token_devsecops-project
+          organization: azure-devsecops-sonar-token
+          token: ${{ secrets.SONAR_TOKEN }}
+
+      # ---- Export SonarCloud Report ----
+      - name: Export SonarCloud Report
+        run: |
+          mkdir -p $REPORTS_DIR/sonarcloud
+          curl -s -u $SONAR_TOKEN: \
+            "https://sonarcloud.io/api/issues/search?componentKeys=azure-devsecops-sonar-token_devsecops-project&types=VULNERABILITY,BUG&resolved=false&ps=500" \
+            -o $REPORTS_DIR/sonarcloud/sonarcloud-report.json
+          ls -alR $REPORTS_DIR
+
+      # ---- Network Scan - Nmap ----
+      - name: Nmap Scan
+        run: |
+          mkdir -p $REPORTS_DIR/nmap
+          echo "Running Nmap Scan"
+          ls -alR $REPORTS_DIR
+
+      # ---- Network Scan - Nikto ----
+      - name: Nikto Scan
+        run: |
+          mkdir -p $REPORTS_DIR/nikto
+          echo "Running Nikto Scan"
+          ls -alR $REPORTS_DIR
+
+      # ---- DAST - ZAP Scan ----
+      - name: OWASP ZAP Scan
+        run: |
+          mkdir -p $REPORTS_DIR/zap
+          chmod -R 777 $REPORTS_DIR/zap
+          echo "Running OWASP ZAP Scan"
+          ls -alR $REPORTS_DIR
+
+      # ---- Upload reports ----
+      - name: Upload Reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: DevSecOps-Reports
+          path: ${{ env.REPORTS_DIR }}
+
+  defectdojo_upload:
+    runs-on: ubuntu-latest
+    needs: security_scans
+    if: always()
+	env: 
+		DEFECTDOJO_TOKEN: ${{ secrets.DEFECTDOJO_TOKEN }}
+	
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download Reports
+        uses: actions/download-artifact@v4
+        with:
+          name: DevSecOps-Reports
+          path: ${{ env.REPORTS_DIR }}
+
+      - name: Upload Reports to DefectDojo
+        run: |
+          set -x
+          REPORT_DIR="${{ env.REPORTS_DIR }}"
+          declare -A REPORTS
+          REPORTS["trufflehog/trufflehog.json"]="Trufflehog Scan"
+          REPORTS["GitGuardian/ggshield-report.json"]="GitGuardian Scan"
+          REPORTS["trivy/trivy-fs-report.json"]="Trivy Scan"
+          REPORTS["semgrep/semgrep-report.json"]="Semgrep JSON Report"
+          REPORTS["Snyk/snyk-sca.json"]="Snyk Scan"
+          REPORTS["sonarcloud/sonarcloud-report.json"]="SonarQube Scan"
+          REPORTS["nmap/nmap.xml"]="Nmap Scan"
+          REPORTS["nikto/nikto-output.xml"]="Nikto Scan"
+          REPORTS["zap/zap_report.xml"]="ZAP Scan"
+
+          for REL_PATH in "${!REPORTS[@]}"; do
+            FULL_PATH="$REPORT_DIR/$REL_PATH"
+            SCAN_TYPE="${REPORTS[$REL_PATH]}"
+
+            if [ -f "$FULL_PATH" ]; then
+              echo "Uploading $SCAN_TYPE -> $FULL_PATH"
+              curl -X POST "${{ env.DEFECTDOJO_URL }}" \
+                -H "Authorization: Token $DEFECTDOJO_TOKEN" \
+                -F "engagement_name=${{ env.ENGAGEMENT_NAME }}" \
+                -F "file=@$FULL_PATH" \
+                -F "scan_type=$SCAN_TYPE" \
+                -F "product_type_name=${{ env.PRODUCT_TYPE_NAME }}" \
+                -F "product_name=${{ env.PRODUCT_NAME }}"
+              echo "Successfully uploaded: $SCAN_TYPE"
+            else
+              echo "WARNING: File not found, skipping: $FULL_PATH"
+            fi
+          done
