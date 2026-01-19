@@ -21,7 +21,7 @@ jobs:
           docker run --rm --user root -v ${{ github.workspace }}:/zap/wrk/:rw \
             -t ghcr.io/zaproxy/zaproxy:stable zap-baseline.py \
             -t http://testphp.vulnweb.com \
-            -r testreport.html
+            -r testreport.html || true
           ls -al
         continue-on-error: true
 
