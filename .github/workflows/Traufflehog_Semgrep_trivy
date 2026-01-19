@@ -1,0 +1,52 @@
+name: Security Scans
+
+on:
+  workflow_dispatch:   # manual trigger, you can add push/PR if needed
+
+jobs:
+  security_scan:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # Run Trufflehog Scan
+      - name: Run Trufflehog Scan
+        run: |
+          docker run --rm gesellix/trufflehog --json https://github.com/jdpatilonline/DevSecOps_GitAction.git > trufflehog.json || true
+          ls -al
+          cat trufflehog.json
+
+      # Run Trivy FS Scan
+      - name: Run Trivy FS Scan
+        run: |
+          docker run --rm -u 0 -v $(pwd):/scan -v $(pwd):/report aquasec/trivy fs /scan --format json --output /report/trivy-fs-report.json || true
+          ls -al
+          cat /report/trivy-fs-report.json
+
+      # Run Semgrep Scan
+      - name: Run Semgrep Scan
+        run: |
+          docker run --rm -u 0 -v "$PWD:/src" semgrep/semgrep semgrep scan --config=auto --json --output semgrep-report.json || true
+          ls -al
+          cat semgrep-report.json
+
+      # Upload reports as artifacts
+      - name: Upload Trufflehog Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: trufflehog-report
+          path: trufflehog.json
+
+      - name: Upload Trivy Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-fs-report
+          path: trivy-fs-report.json
+
+      - name: Upload Semgrep Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: semgrep-report
+          path: semgrep-report.json
