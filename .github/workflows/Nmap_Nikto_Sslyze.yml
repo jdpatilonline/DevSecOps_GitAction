@@ -41,8 +41,7 @@ jobs:
       # Run SSLyze Scan 
       - name: Run SSLyze Scan
         run: |
-          python -m sslyze --regular $TARGET_URL \
-            --json_out sslyze-output.json || true
+          python -m sslyze $TARGET_URL --json_out sslyze-output.json || true
           ls -al
           cat sslyze-output.json || true
 
