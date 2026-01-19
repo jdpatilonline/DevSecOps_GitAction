@@ -17,6 +17,7 @@ jobs:
       # Run Nikto Scan
       - name: Run Nikto Scan
         run: |
+          mkdir scan
           docker run --user $(id -u):$(id -g) --rm \
             -v $(pwd):/scan -i secfigo/nikto:latest \
             -h $TARGET_HOST_URL \
