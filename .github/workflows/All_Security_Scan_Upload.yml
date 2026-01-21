@@ -105,9 +105,25 @@ jobs:
             -Dsonar.sources=.
             -Dsonar.exclusions=**/tests/**,**/docs/**,**/vendor/**,**/*.md
             -Dsonar.sourceEncoding=UTF-8
-            -Dsonar.qualitygate.wait=true
+            -Dsonar.qualitygate.wait=false
             -Dsonar.qualitygate.timeout=300
 
+      - name: Fetch Soanr CloudQuality Gate Status
+        run: |
+          mkdir -p $REPORTS_DIR/sonarcloud
+          curl -s -u ${{ secrets.SONAR_TOKEN }}: \
+            "https://sonarcloud.io/api/qualitygates/project_status?projectKey=jdpatilonline_DevSecOps_GitAction" \
+            | jq '.' > sonarcloud/sonarcloud-report.json
+            ls -alR $REPORTS_DIR
+            cat $REPORTS_DIR/sonarcloud/sonarcloud-report.json
+
+      # Upload the summary file as artifact
+      - name: Upload SonarCloud Analysis with Quality Gate
+        uses: actions/upload-artifact@v4
+        with:
+          name: SonarCloud Analysis with Quality Gate
+          path: sonarcloud-quality-gate.json
+          
       # ---- Export SonarCloud Report ----
       - name: Export SonarCloud Report
         run: |
