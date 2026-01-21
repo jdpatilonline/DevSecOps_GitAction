@@ -60,6 +60,7 @@ jobs:
           ggshield api-status
           ggshield secret scan ci || true
           ggshield secret scan ci --json > $REPORTS_DIR/GitGuardian/ggshield-report.json || true
+          cat $REPORTS_DIR/GitGuardian/ggshield-report.json || true
           ls -alR $REPORTS_DIR
         env:
           GITGUARDIAN_API_KEY: ${{ secrets.GITGUARDIAN_API_KEY }}
@@ -114,7 +115,7 @@ jobs:
           mkdir -p $REPORTS_DIR/sonarcloud
           curl -s -u ${{ secrets.SONAR_TOKEN }}: \
             "https://sonarcloud.io/api/qualitygates/project_status?projectKey=jdpatilonline_DevSecOps_GitAction" \
-            | jq '.' > sonarcloud/sonarcloud-report.json
+            | jq '.' > $REPORTS_DIR/sonarcloud/sonarcloud-report.json
             ls -alR $REPORTS_DIR
             cat $REPORTS_DIR/sonarcloud/sonarcloud-report.json
 
