@@ -1,4 +1,4 @@
-name: Traufflehog and Semgrep Scans
+name: Traufflehog and Trivy FS and Semgrep Scans
 
 on:
   workflow_dispatch:   # manual trigger, you can add push/PR if needed
