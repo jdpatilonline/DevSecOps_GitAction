@@ -43,14 +43,18 @@ jobs:
             -Dsonar.sourceEncoding=UTF-8
             -Dsonar.qualitygate.wait=true
             -Dsonar.qualitygate.timeout=300
-          # Fetch Quality Gate status from SonarCloud API
         continue-on-error: true
-    
+
+      # Fetch Quality Gate status from SonarCloud API
       - name: Fetch Quality Gate Status
         run: |
+          #curl -s -u ${{ secrets.SONAR_TOKEN }}: \
+          #  "https://sonarcloud.io/api/qualitygates/project_status?projectKey=jdpatilonline_DevSecOps_GitAction" \
+          #  | jq '.' > sonarcloud-quality-gate.json
           curl -s -u ${{ secrets.SONAR_TOKEN }}: \
-            "https://sonarcloud.io/api/qualitygates/project_status?projectKey=jdpatilonline_DevSecOps_GitAction" \
-            | jq '.' > sonarcloud-quality-gate.json
+            "https://sonarcloud.io/api/issues/search?componentKeys=jdpatilonline_DevSecOps_GitAction&ps=500" \
+            | jq '.' > sonarcloud-Vuln_report.json
+          cat sonarcloud-Vuln_report.json
 
       # Upload the summary file as artifact
       - name: Upload SonarCloud Analysis with Quality Gate
