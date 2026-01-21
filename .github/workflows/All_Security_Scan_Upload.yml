@@ -118,13 +118,6 @@ jobs:
             | jq '.' >  $REPORTS_DIR/sonarcloud/sonarcloud-report.json
             ls -alR $REPORTS_DIR
             cat $REPORTS_DIR/sonarcloud/sonarcloud-report.json
-
-      # Upload the summary file as artifact
-      - name: Upload SonarCloud Analysis with Quality Gate
-        uses: actions/upload-artifact@v4
-        with:
-          name: SonarCloud Analysis with Quality Gate
-          path: sonarcloud-quality-gate.json
           
       # ---- Export SonarCloud Report ----
       - name: Export SonarCloud Report
@@ -191,7 +184,7 @@ jobs:
 
           declare -A REPORTS
           REPORTS["trufflehog/trufflehog.json"]="Trufflehog Scan" # 1
-          REPORTS["GitGuardian/ggshield-report.json"]="GitGuardian Scan"  # 2
+          REPORTS["GitGuardian/ggshield-report.json"]="GitGuardian Scan"  # 2 not supported by defect dojo
           REPORTS["trivy/trivy-fs-report.json"]="Trivy Scan"   # 3
           REPORTS["semgrep/semgrep-report.json"]="Semgrep JSON Report"   # 4
           REPORTS["Snyk/snyk-sca.json"]="Snyk Scan"   # 5
