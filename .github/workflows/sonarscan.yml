@@ -48,7 +48,7 @@ jobs:
       # Fetch Quality Gate status from SonarCloud API
       - name: Fetch Quality Gate Status
         run: |
-          #curl -s -u ${{ secrets.SONAR_TOKEN }}: \
+          # curl -s -u ${{ secrets.SONAR_TOKEN }}: \
           #  "https://sonarcloud.io/api/qualitygates/project_status?projectKey=jdpatilonline_DevSecOps_GitAction" \
           #  | jq '.' > sonarcloud-quality-gate.json
           curl -s -u ${{ secrets.SONAR_TOKEN }}: \
