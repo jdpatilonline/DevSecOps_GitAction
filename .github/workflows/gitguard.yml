@@ -21,11 +21,12 @@ jobs:
         run: |
           pip install --upgrade ggshield
           ggshield api-status
-          ggshield secret scan ci || true
           ggshield secret scan ci --json > ggshield-report.json || true
+          ggshield secret scan ci --exit-zero-on=low,medium
           # ggshield secret scan path Test.txt --show-secrets --format json --output ggshield-report.json || true # scan path
           # ggshield secret scan repo --show-secrets --format json --output ggshield-report.json . # scan repo
           ls -al
+          echo "Print the result output"
           cat ggshield-report.json || true
         env:
           GITGUARDIAN_API_KEY: ${{ secrets.GITGUARDIAN_API_KEY }}
