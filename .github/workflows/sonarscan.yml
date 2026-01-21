@@ -44,6 +44,7 @@ jobs:
             -Dsonar.qualitygate.wait=true
             -Dsonar.qualitygate.timeout=300
           # Fetch Quality Gate status from SonarCloud API
+          continue-on-error: true
     
       - name: Fetch Quality Gate Status
         run: |
