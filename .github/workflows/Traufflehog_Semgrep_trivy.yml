@@ -1,4 +1,4 @@
-name: Security Scans
+name: Traufflehog and Semgrep Scans
 
 on:
   workflow_dispatch:   # manual trigger, you can add push/PR if needed
