@@ -53,8 +53,8 @@ jobs:
           #  | jq '.' > sonarcloud-quality-gate.json
           curl -s -u ${{ secrets.SONAR_TOKEN }}: \
             "https://sonarcloud.io/api/issues/search?componentKeys=jdpatilonline_DevSecOps_GitAction&ps=500" \
-            | jq '.' > sonarcloud-Vuln_report.json
-          cat sonarcloud-Vuln_report.json
+            | jq '.' >  sonarcloud-quality-gate.json
+          cat sonarcloud-quality-gate.json
 
       # Upload the summary file as artifact
       - name: Upload SonarCloud Analysis with Quality Gate
