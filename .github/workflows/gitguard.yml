@@ -25,6 +25,7 @@ jobs:
           ls -al .
           ggshield secret scan path Test.txt --show-secrets --format json --output ggshield-report.json
           #run: ggshield secret scan repo --show-secrets --format json --output ggshield-report.json . # scan for whole repo.
+          cat ggshield-report.json || true
         continue-on-error: true
         env:
           GITGUARDIAN_API_KEY: ${{ secrets.GITGUARDIAN_API_KEY }}
