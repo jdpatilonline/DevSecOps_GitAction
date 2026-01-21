@@ -43,7 +43,7 @@ jobs:
             -Dsonar.sourceEncoding=UTF-8
             -Dsonar.qualitygate.wait=true
             -Dsonar.qualitygate.timeout=300
-        continue-on-error: true
+      #  continue-on-error: true
 
       # Fetch Quality Gate status from SonarCloud API
       - name: Fetch Quality Gate Status
