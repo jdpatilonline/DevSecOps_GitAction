@@ -22,7 +22,7 @@ jobs:
           pip install --upgrade ggshield
           ggshield api-status
           ggshield secret scan ci --json > ggshield-report.json || true
-          ggshield secret scan ci --exit-zero-on=low,medium
+          ggshield secret scan ci
           # ggshield secret scan path Test.txt --show-secrets --format json --output ggshield-report.json || true # scan path
           # ggshield secret scan repo --show-secrets --format json --output ggshield-report.json . # scan repo
           ls -al
