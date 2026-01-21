@@ -95,7 +95,6 @@ jobs:
       # SonarCloud scan (ALL properties inline)
       - name: SonarCloud Scan
         uses: SonarSource/sonarcloud-github-action@v2
-        continue-on-error: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} #auto‑provided by GitHub
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
@@ -109,13 +108,14 @@ jobs:
             -Dsonar.sourceEncoding=UTF-8
             -Dsonar.qualitygate.wait=false
             -Dsonar.qualitygate.timeout=300
+        continue-on-error: true
 
       - name: Fetch Soanr CloudQuality Gate Status
         run: |
           mkdir -p $REPORTS_DIR/sonarcloud
           curl -s -u ${{ secrets.SONAR_TOKEN }}: \
-            "https://sonarcloud.io/api/qualitygates/project_status?projectKey=jdpatilonline_DevSecOps_GitAction" \
-            | jq '.' > $REPORTS_DIR/sonarcloud/sonarcloud-report.json
+            "https://sonarcloud.io/api/issues/search?componentKeys=jdpatilonline_DevSecOps_GitAction&ps=500" \
+            | jq '.' >  $REPORTS_DIR/sonarcloud/sonarcloud-report.json
             ls -alR $REPORTS_DIR
             cat $REPORTS_DIR/sonarcloud/sonarcloud-report.json
 
@@ -190,15 +190,15 @@ jobs:
           REPORT_DIR="${{ env.REPORTS_DIR }}"
 
           declare -A REPORTS
-          REPORTS["trufflehog/trufflehog.json"]="Trufflehog Scan"
-          REPORTS["GitGuardian/ggshield-report.json"]="GitGuardian Scan"
-          REPORTS["trivy/trivy-fs-report.json"]="Trivy Scan"
-          REPORTS["semgrep/semgrep-report.json"]="Semgrep JSON Report"
-          REPORTS["Snyk/snyk-sca.json"]="Snyk Scan"
-          REPORTS["sonarcloud/sonarcloud-report.json"]="SonarQube Scan"
-          REPORTS["nmap/nmap.xml"]="Nmap Scan"
-          REPORTS["nikto/nikto-output.xml"]="Nikto Scan"
-          REPORTS["zap/zap_report.xml"]="ZAP Scan"
+          REPORTS["trufflehog/trufflehog.json"]="Trufflehog Scan" # 1
+          REPORTS["GitGuardian/ggshield-report.json"]="GitGuardian Scan"  # 2
+          REPORTS["trivy/trivy-fs-report.json"]="Trivy Scan"   # 3
+          REPORTS["semgrep/semgrep-report.json"]="Semgrep JSON Report"   # 4
+          REPORTS["Snyk/snyk-sca.json"]="Snyk Scan"   # 5
+          REPORTS["sonarcloud/sonarcloud-report.json"]="SonarQube Scan"   # 6
+          REPORTS["nmap/nmap.xml"]="Nmap Scan"   # 7
+          REPORTS["nikto/nikto-output.xml"]="Nikto Scan"   # 8
+          REPORTS["zap/zap_report.xml"]="ZAP Scan"   # 9
 
           for REL_PATH in "${!REPORTS[@]}"; do
             FULL_PATH="$REPORT_DIR/$REL_PATH"
