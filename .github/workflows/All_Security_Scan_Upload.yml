@@ -59,6 +59,7 @@ jobs:
           pip install ggshield
           ggshield api-status
           ggshield secret scan ci || true
+          ggshield secret scan ci --json > $REPORTS_DIR/GitGuardian/ggshield-report.json || true
           ls -alR $REPORTS_DIR
         env:
           GITGUARDIAN_API_KEY: ${{ secrets.GITGUARDIAN_API_KEY }}
