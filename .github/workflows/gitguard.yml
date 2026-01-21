@@ -14,18 +14,16 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0  # Important for full repo scan
 
       - name: GitGuardian Full Repo Scan (JSON Output)
         run: |
+          ls -al
           pip install --upgrade ggshield
           ggshield api-status
           ggshield secret scan ci --json > ggshield-report.json || true
           ggshield secret scan ci
           # ggshield secret scan path Test.txt --show-secrets --format json --output ggshield-report.json || true # scan path
           # ggshield secret scan repo --show-secrets --format json --output ggshield-report.json . # scan repo
-          ls -al
           echo "Print the result output"
           cat ggshield-report.json || true
         env:
