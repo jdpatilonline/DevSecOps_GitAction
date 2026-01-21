@@ -17,16 +17,15 @@ jobs:
         with:
           fetch-depth: 0  # Important for full repo scan
 
-      - name: Install ggshield
-        run: pip install --upgrade ggshield
-
       - name: GitGuardian Full Repo Scan (JSON Output)
         run: |
-          ls -al .
-          ggshield secret scan path Test.txt --show-secrets --format json --output ggshield-report.json
-          #run: ggshield secret scan repo --show-secrets --format json --output ggshield-report.json . # scan for whole repo.
+          pip install --upgrade ggshield
+          ggshield api-status
+          ggshield secret scan ci --json > ggshield-report.json || true
+          # ggshield secret scan path Test.txt --show-secrets --format json --output ggshield-report.json || true # scan path
+          # ggshield secret scan repo --show-secrets --format json --output ggshield-report.json . # scan repo
+          ls -al
           cat ggshield-report.json || true
-        continue-on-error: true
         env:
           GITGUARDIAN_API_KEY: ${{ secrets.GITGUARDIAN_API_KEY }}
 
