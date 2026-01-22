@@ -23,7 +23,9 @@ jobs:
 
       # Run Snyk scan directly on project files (no build)
       - name: Run Snyk Scan
-        run: snyk test --all-projects --json-file-output=snyk-report.json
+        run: |
+          npm install
+          snyk test --all-projects --json-file-output=snyk-report.json
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
 
