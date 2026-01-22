@@ -36,35 +36,14 @@ jobs:
         with:
           args: >
             -Dsonar.organization=jdpatilonline
-            -Dsonar.projectKey=jdpatilonline_webdemo-devsecops-githubaction
-            -Dsonar.projectName=Webdemo_DevSecOps_GithubAction
+            -Dsonar.projectKey=jdpatilonline_DevSecOps_GitAction
+            -Dsonar.projectName=DevSecOps_GitAction
             -Dsonar.sources=.
             -Dsonar.exclusions=**/tests/**,**/docs/**,**/vendor/**,**/*.md
             -Dsonar.sourceEncoding=UTF-8
             -Dsonar.qualitygate.wait=true
             -Dsonar.qualitygate.timeout=300
-        continue-on-error: true
-
-      # Fetch Quality Gate status from SonarCloud API and fail if critical and high vuln found.
-      - name: Fail if High/Critical issues found
-        run: |
-          # Query issues directly from SonarCloud API
-          CRITICAL=$(curl -s -u ${{ secrets.SONAR_TOKEN }}: \
-            "https://sonarcloud.io/api/issues/search?componentKeys=jdpatilonline_webdemo-devsecops-githubaction&severities=CRITICAL" \
-            | jq '.total')  # INFO, MINOR, MAJOR, CRITICAL, BLOCKER
-          HIGH=$(curl -s -u ${{ secrets.SONAR_TOKEN }}: \
-            "https://sonarcloud.io/api/issues/search?componentKeys=jdpatilonline_webdemo-devsecops-githubaction&severities=CRITICAL" \
-            | jq '.total') 
-
-          echo "Critical issues: $CRITICAL"
-          echo "High issues: $HIGH"
-
-          if [ "$CRITICAL" -gt 0 ] || [ "$HIGH" -gt 0 ]; then
-            echo " High/Critical issues detected. Failing pipeline."
-            exit 1
-          else
-            echo "No High/Critical issues found."
-          fi
+     #   continue-on-error: true
 
       # Fetch Quality Gate status vuln report from SonarCloud API
       - name: Fetch Quality Gate Status
