@@ -43,16 +43,34 @@ jobs:
             -Dsonar.qualitygate.timeout=300
       #  continue-on-error: true
 
-      # Fetch Quality Gate status from SonarCloud API
+      # Fetch Quality Gate status from SonarCloud API and fail if critical and high vuln found.
+      - name: Fail if High/Critical issues found
+        run: |
+          # Query issues directly from SonarCloud API
+          CRITICAL=$(curl -s -u ${{ secrets.SONAR_TOKEN }}: \
+            "https://sonarcloud.io/api/issues/search?componentKeys=jdpatilonline_DevSecOps_GitAction&severities=CRITICAL" \
+            | jq '.total')
+          HIGH=$(curl -s -u ${{ secrets.SONAR_TOKEN }}: \
+            "https://sonarcloud.io/api/issues/search?componentKeys=jdpatilonline_DevSecOps_GitAction&severities=HIGH" \
+            | jq '.total')
+
+          echo "Critical issues: $CRITICAL"
+          echo "High issues: $HIGH"
+
+          if [ "$CRITICAL" -gt 0 ] || [ "$HIGH" -gt 0 ]; then
+            echo " High/Critical issues detected. Failing pipeline."
+            exit 1
+          else
+            echo "No High/Critical issues found."
+          fi
+
+      # Fetch Quality Gate status vuln report from SonarCloud API
       - name: Fetch Quality Gate Status
         run: |
-          # curl -s -u ${{ secrets.SONAR_TOKEN }}: \
-          #  "https://sonarcloud.io/api/qualitygates/project_status?projectKey=jdpatilonline_DevSecOps_GitAction" \
-          #  | jq '.' > sonarcloud-quality-gate.json
           curl -s -u ${{ secrets.SONAR_TOKEN }}: \
             "https://sonarcloud.io/api/issues/search?componentKeys=jdpatilonline_DevSecOps_GitAction&ps=500" \
             | jq '.' >  sonarcloud-quality-gate.json
-          cat sonarcloud-quality-gate.json
+          cat sonarcloud-quality-gate.json || true
 
       # Upload the summary file as artifact
       - name: Upload SonarCloud Analysis with Quality Gate
