@@ -18,6 +18,8 @@ jobs:
       # Checkout source code
       - name: Checkout repository
         uses: actions/checkout@v4
+        with: 
+          repository: jdpatilonline/Webdemo_DevSecOps_GithubAction
 
       - name: show cloned repo
         run: |
@@ -34,8 +36,8 @@ jobs:
         with:
           args: >
             -Dsonar.organization=jdpatilonline
-            -Dsonar.projectKey=jdpatilonline_DevSecOps_GitAction
-            -Dsonar.projectName=DevSecOps_GitAction
+            -Dsonar.projectKey=jdpatilonline_webdemo-devsecops-githubaction
+            -Dsonar.projectName=Webdemo_DevSecOps_GithubAction
             -Dsonar.sources=.
             -Dsonar.exclusions=**/tests/**,**/docs/**,**/vendor/**,**/*.md
             -Dsonar.sourceEncoding=UTF-8
@@ -48,7 +50,7 @@ jobs:
         run: |
           # Query issues directly from SonarCloud API
           CRITICAL=$(curl -s -u ${{ secrets.SONAR_TOKEN }}: \
-            "https://sonarcloud.io/api/issues/search?componentKeys=jdpatilonline_DevSecOps_GitAction&severities=BLOCKER" \
+            "https://sonarcloud.io/api/issues/search?componentKeys=jdpatilonline_webdemo-devsecops-githubaction&severities=BLOCKER" \
             | jq '.total')  # INFO, MINOR, MAJOR, CRITICAL, BLOCKER
           HIGH=$(curl -s -u ${{ secrets.SONAR_TOKEN }}: \
             "https://sonarcloud.io/api/issues/search?componentKeys=jdpatilonline_DevSecOps_GitAction&severities=CRITICAL" \
