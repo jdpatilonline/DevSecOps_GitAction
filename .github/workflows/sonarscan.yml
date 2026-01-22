@@ -53,7 +53,7 @@ jobs:
             "https://sonarcloud.io/api/issues/search?componentKeys=jdpatilonline_webdemo-devsecops-githubaction&severities=BLOCKER" \
             | jq '.total')  # INFO, MINOR, MAJOR, CRITICAL, BLOCKER
           HIGH=$(curl -s -u ${{ secrets.SONAR_TOKEN }}: \
-            "https://sonarcloud.io/api/issues/search?componentKeys=jdpatilonline_DevSecOps_GitAction&severities=CRITICAL" \
+            "https://sonarcloud.io/api/issues/search?componentKeys=jdpatilonline_webdemo-devsecops-githubaction&severities=CRITICAL" \
             | jq '.total') 
 
           echo "Critical issues: $CRITICAL"
