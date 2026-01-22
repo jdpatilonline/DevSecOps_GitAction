@@ -48,11 +48,11 @@ jobs:
         run: |
           # Query issues directly from SonarCloud API
           CRITICAL=$(curl -s -u ${{ secrets.SONAR_TOKEN }}: \
-            "https://sonarcloud.io/api/issues/search?componentKeys=jdpatilonline_DevSecOps_GitAction&severities=INFO" \
-            | jq '.total')
+            "https://sonarcloud.io/api/issues/search?componentKeys=jdpatilonline_DevSecOps_GitAction&severities=MAJOR" \
+            | jq '.total')  # INFO, MINOR, MAJOR, CRITICAL, BLOCKER
           HIGH=$(curl -s -u ${{ secrets.SONAR_TOKEN }}: \
-            "https://sonarcloud.io/api/issues/search?componentKeys=jdpatilonline_DevSecOps_GitAction&severities=MINOR" \
-            | jq '.total')
+            "https://sonarcloud.io/api/issues/search?componentKeys=jdpatilonline_DevSecOps_GitAction&severities=MAJOR" \
+            | jq '.total') 
 
           echo "Critical issues: $CRITICAL"
           echo "High issues: $HIGH"
