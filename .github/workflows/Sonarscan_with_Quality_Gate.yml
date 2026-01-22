@@ -18,9 +18,7 @@ jobs:
       # Checkout source code
       - name: Checkout repository
         uses: actions/checkout@v4
-        with: 
-          repository: jdpatilonline/Webdemo_DevSecOps_GithubAction
-
+        
       - name: show cloned repo
         run: |
           pwd
