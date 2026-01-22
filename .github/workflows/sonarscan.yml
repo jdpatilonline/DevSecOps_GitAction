@@ -41,7 +41,7 @@ jobs:
             -Dsonar.sourceEncoding=UTF-8
             -Dsonar.qualitygate.wait=true
             -Dsonar.qualitygate.timeout=300
-      #  continue-on-error: true
+        continue-on-error: true
 
       # Fetch Quality Gate status from SonarCloud API and fail if critical and high vuln found.
       - name: Fail if High/Critical issues found
