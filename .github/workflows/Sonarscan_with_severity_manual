@@ -70,7 +70,7 @@ jobs:
       - name: Fetch Quality Gate Status
         run: |
           curl -s -u ${{ secrets.SONAR_TOKEN }}: \
-            "https://sonarcloud.io/api/issues/search?componentKeys=jdpatilonline_DevSecOps_GitAction&ps=500" \
+            "https://sonarcloud.io/api/issues/search?componentKeys=jdpatilonline_webdemo-devsecops-githubaction&ps=500" \
             | jq '.' >  sonarcloud-quality-gate.json
           cat sonarcloud-quality-gate.json || true
 
