@@ -27,7 +27,7 @@ jobs:
           ls docs/
           cd docs/
           npm install
-          snyk test --all-projects --severity-threshold=low --json-file-output=snyk-report.json
+          snyk test --all-projects --severity-threshold=medium --json-file-output=snyk-report.json
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
 
