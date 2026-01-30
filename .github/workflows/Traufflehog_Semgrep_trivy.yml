@@ -29,8 +29,8 @@ jobs:
       # Run Semgrep Scan
       - name: Run Semgrep Scan
         run: |
-          docker run --rm -u 0 -v "$PWD:/src" semgrep/semgrep semgrep scan --config=auto --json --output semgrep-report.json || true
-           # docker run --rm -e SEMGREP_APP_TOKEN=$SEMGREP_APP_TOKEN -v "$(pwd)":/src semgrep/semgrep semgrep ci || true
+          docker run --rm -u 0 -v "$PWD:/src" semgrep/semgrep semgrep --config=auto --json --output semgrep-report.json || true  # Local Scan
+          # docker run --rm -e SEMGREP_APP_TOKEN=$SEMGREP_APP_TOKEN -v "$(pwd)":/src semgrep/semgrep semgrep ci || true     # Semgrep portal scan
           ls -al
           cat semgrep-report.json
 
