@@ -16,14 +16,14 @@ jobs:
         run: |
           # docker run --rm gesellix/trufflehog --json https://github.com/jdpatilonline/DevSecOps_GitAction.git > trufflehog.json || true
           ls -al
-          cat trufflehog.json
+          cat trufflehog.json || true
 
       # Run Trivy FS Scan
       - name: Run Trivy FS Scan
         run: |
           # docker run --rm -u 0 -v $(pwd):/scan -v $(pwd):/report aquasec/trivy fs /scan --format json --output /report/trivy-fs-report.json
           ls -al
-          cat trivy-fs-report.json
+          cat trivy-fs-report.json || true
         continue-on-error: true
 
       # Run Semgrep Scan
