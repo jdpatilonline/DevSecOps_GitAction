@@ -23,5 +23,4 @@ jobs:
       image: semgrep/semgrep
     steps:
     - uses: actions/checkout@v4
-    - run: | 
-        semgrep scan semgrep scan --config=auto --severity=ERROR --severity=WARNING --error
+    - run: semgrep ci
