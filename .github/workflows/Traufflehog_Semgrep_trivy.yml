@@ -30,7 +30,7 @@ jobs:
       - name: Run Semgrep Scan
         run: |
           #==== Local Scan ====
-          # docker run --rm -u 0 -v "$PWD:/src" semgrep/semgrep semgrep scan  --json --output semgrep-report.json  
+          docker run --rm -u 0 -v "$PWD:/src" semgrep/semgrep semgrep scan  --json --output semgrep-report.json  
           
           #==== Local Scan fail based on severity ====
           # docker run --rm -u 0 -v "$PWD:/src" semgrep/semgrep semgrep scan --severity=ERROR --severity=WARNING --error
