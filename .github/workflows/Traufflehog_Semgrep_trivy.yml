@@ -14,14 +14,14 @@ jobs:
       # Run Trufflehog Scan
       - name: Run Trufflehog Scan
         run: |
-          docker run --rm gesellix/trufflehog --json https://github.com/jdpatilonline/DevSecOps_GitAction.git > trufflehog.json || true
+          # docker run --rm gesellix/trufflehog --json https://github.com/jdpatilonline/DevSecOps_GitAction.git > trufflehog.json || true
           ls -al
           cat trufflehog.json
 
       # Run Trivy FS Scan
       - name: Run Trivy FS Scan
         run: |
-          docker run --rm -u 0 -v $(pwd):/scan -v $(pwd):/report aquasec/trivy fs /scan --format json --output /report/trivy-fs-report.json
+          # docker run --rm -u 0 -v $(pwd):/scan -v $(pwd):/report aquasec/trivy fs /scan --format json --output /report/trivy-fs-report.json
           ls -al
           cat trivy-fs-report.json
         continue-on-error: true
@@ -29,10 +29,17 @@ jobs:
       # Run Semgrep Scan
       - name: Run Semgrep Scan
         run: |
-          docker run --rm -u 0 -v "$PWD:/src" semgrep/semgrep semgrep --config=auto --json --output semgrep-report.json || true  # Local Scan
-          # docker run --rm -e SEMGREP_APP_TOKEN=$SEMGREP_APP_TOKEN -v "$(pwd)":/src semgrep/semgrep semgrep ci || true     # Semgrep portal scan
+          #==== Local Scan ====
+          # docker run --rm -u 0 -v "$PWD:/src" semgrep/semgrep semgrep scan  --json --output semgrep-report.json  
+          
+          #==== Local Scan fail based on severity ====
+          docker run --rm -u 0 -v "$PWD:/src" semgrep/semgrep semgrep scan --severity=ERROR --severity=WARNING --error --json --output semgrep-report.json  
+          
+          #======== Semgrep portal scan=======
+          # docker run --rm -e SEMGREP_APP_TOKEN=$SEMGREP_APP_TOKEN -v "$(pwd)":/src semgrep/semgrep semgrep ci 
+          
           ls -al
-          cat semgrep-report.json
+          cat semgrep-report.json || true
 
       #### Upload reports as artifacts#####
       - name: Upload Trufflehog Report
