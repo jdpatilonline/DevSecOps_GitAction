@@ -29,7 +29,8 @@ jobs:
           npm install
           #snyk test --all-projects --severity-threshold=low --json-file-output=snyk-report.json
           #snyk test --all-projects --severity-threshold=medium --json-file-output=snyk-report.json
-          snyk test --all-projects --severity-threshold=high --json-file-output=snyk-report.json
+          #snyk code test --all-projects --severity-threshold=medium --json-file-output=snyk-report.json # To Perform SAST scan
+          snyk test --all-projects --severity-threshold=high --json-file-output=snyk-report.json # To perform SCA Scan
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
 
