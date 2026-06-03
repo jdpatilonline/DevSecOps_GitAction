@@ -1,0 +1,67 @@
+# .github/workflows/dast-ai.yml
+# Drop into your repo. Add a secret named DAST_AI_TOKEN with the token issued
+# by the DAST AI platform (DevSecOps → Integrations → New CI Token).
+#
+# The pipeline runs scans on the DAST AI framework (NOT inside the runner),
+# waits for the gate verdict, and fails the build on a 'block' decision.
+
+name: DAST AI — DevSecOps Gate
+
+on:
+  pull_request:
+    branches: [main, master, hotfix/**, release/**]
+  push:
+    branches: [main, master]
+
+jobs:
+  security-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Trigger DAST AI scan
+        id: trigger
+        env:
+          DAST_AI_URL:   ${{ vars.DAST_AI_URL || 'https://dast-ai.internal' }}
+          DAST_AI_TOKEN: ${{ secrets.DAST_AI_TOKEN }}
+        run: |
+          set -e
+          PAYLOAD=$(jq -n \
+            --arg repo "${{ github.repository }}" \
+            --arg url  "https://github.com/${{ github.repository }}" \
+            --arg sha  "${{ github.sha }}" \
+            --arg br   "${{ github.head_ref || github.ref_name }}" \
+            --argjson pr "${{ github.event.pull_request.number || 0 }}" \
+            '{repo:$url, commit:$sha, branch:$br, pr_number:(if $pr==0 then null else $pr end),
+              ci_system:"github", scanners:["semgrep","snyk","trufflehog","trivy"],
+              gate:{fail_on:"high", sla_seconds:1500}}')
+          RESP=$(curl -sf -X POST "$DAST_AI_URL/api/ci/scan" \
+            -H "Authorization: Bearer $DAST_AI_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d "$PAYLOAD")
+          JOB_ID=$(echo "$RESP" | jq -r .job_id)
+          echo "job_id=$JOB_ID" >> "$GITHUB_OUTPUT"
+          echo "✓ Scan launched: $JOB_ID"
+
+      - name: Wait for gate verdict
+        env:
+          DAST_AI_URL:   ${{ vars.DAST_AI_URL || 'https://dast-ai.internal' }}
+          DAST_AI_TOKEN: ${{ secrets.DAST_AI_TOKEN }}
+        run: |
+          set -e
+          JOB="${{ steps.trigger.outputs.job_id }}"
+          # Long-poll for up to 25 minutes
+          RESP=$(curl -sf "$DAST_AI_URL/api/ci/scan/$JOB/gate-result?timeout_seconds=1500" \
+            -H "Authorization: Bearer $DAST_AI_TOKEN")
+          DECISION=$(echo "$RESP" | jq -r .decision)
+          echo "Gate decision: $DECISION"
+          echo "$RESP" | jq .
+          if [ "$DECISION" = "block" ]; then
+            echo "::error::DAST AI gate BLOCKED this build."
+            exit 1
+          fi
+          if [ "$DECISION" = "pending" ]; then
+            echo "::warning::Gate did not decide within timeout — failing safe."
+            exit 1
+          fi
