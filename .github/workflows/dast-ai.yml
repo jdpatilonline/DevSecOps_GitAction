@@ -43,7 +43,7 @@ jobs:
           JOB_ID=$(echo "$RESP" | jq -r .job_id)
           echo "job_id=$JOB_ID" >> "$GITHUB_OUTPUT"
           echo "✓ Scan launched: $JOB_ID"
-
+          
       - name: Wait for gate verdict
         env:
           DAST_AI_URL:   ${{ vars.DAST_AI_URL || 'https://dast-ai.internal' }}
@@ -51,17 +51,33 @@ jobs:
         run: |
           set -e
           JOB="${{ steps.trigger.outputs.job_id }}"
-          # Long-poll for up to 25 minutes
-          RESP=$(curl -sf "$DAST_AI_URL/api/ci/scan/$JOB/gate-result?timeout_seconds=60" \
-            -H "Authorization: Bearer $DAST_AI_TOKEN")
-          DECISION=$(echo "$RESP" | jq -r .decision)
-          echo "Gate decision: $DECISION"
-          echo "$RESP" | jq .
-          if [ "$DECISION" = "block" ]; then
-            echo "::error::DAST AI gate BLOCKED this build."
-            exit 1
-          fi
-          if [ "$DECISION" = "pending" ]; then
-            echo "::warning::Gate did not decide within timeout — failing safe."
-            exit 1
-          fi
+          # Poll up to ~25 min. Each request waits 60s server-side (under the ~100s
+          # tunnel cut-off). NO `curl -f` — a transient non-2xx retries, not aborts.
+          DEADLINE=$(( $(date +%s) + 15000 ))
+          while true; do
+            RESP=$(curl -s -w "\n%{http_code}" \
+              "$DAST_AI_URL/api/ci/scan/$JOB/gate-result?timeout_seconds=60" \
+              -H "Authorization: Bearer $DAST_AI_TOKEN") || true
+            HTTP_CODE=$(echo "$RESP" | tail -1)
+            BODY=$(echo "$RESP" | head -n -1)
+            if [ "$HTTP_CODE" -lt 200 ] || [ "$HTTP_CODE" -ge 300 ]; then
+              echo "::warning::gate-result returned HTTP $HTTP_CODE — retrying. $BODY"
+              sleep 5
+            else
+              DECISION=$(echo "$BODY" | jq -r .decision)
+              echo "Gate decision: $DECISION"
+              if [ "$DECISION" = "block" ]; then
+                echo "$BODY" | jq .
+                echo "::error::DAST AI gate BLOCKED this build."; exit 1
+              fi
+              if [ "$DECISION" = "pass" ]; then
+                echo "$BODY" | jq .
+                echo "✓ DAST AI gate PASSED."; exit 0
+              fi
+              # pending → scan still running; keep polling.
+            fi
+            if [ "$(date +%s)" -ge "$DEADLINE" ]; then
+              echo "::warning::Gate did not decide within timeout — failing safe."; exit 1
+            fi
+          done
+
