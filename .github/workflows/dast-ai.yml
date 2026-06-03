@@ -52,7 +52,7 @@ jobs:
           set -e
           JOB="${{ steps.trigger.outputs.job_id }}"
           # Long-poll for up to 25 minutes
-          RESP=$(curl -sf "$DAST_AI_URL/api/ci/scan/$JOB/gate-result?timeout_seconds=1500" \
+          RESP=$(curl -sf "$DAST_AI_URL/api/ci/scan/$JOB/gate-result?timeout_seconds=60" \
             -H "Authorization: Bearer $DAST_AI_TOKEN")
           DECISION=$(echo "$RESP" | jq -r .decision)
           echo "Gate decision: $DECISION"
