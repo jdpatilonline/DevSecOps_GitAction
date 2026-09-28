@@ -1,0 +1,145 @@
+# =============================================================================
+# Veracode  --  SAST (two modes) + SCA in one workflow
+#
+#   sast-pipeline  PIPELINE SCAN: fast, runs in the pipeline, returns results in
+#                  minutes. This is your PR break-build GATE. (The "fast/dev" scan)
+#
+#   sast-policy    UPLOAD & SCAN: the full Policy Scan of record on the Veracode
+#                  platform. Async and slower, so it runs on push to main only,
+#                  as a compliance scan -- not as a PR gate. (The "platform" scan)
+#
+#   sca            AGENT-BASED SCA: scans your dependencies/manifests for known
+#                  CVEs and license risk. Gates on CVSS.
+#
+# !! IMPORTANT !! Veracode Static Analysis scans a COMPILED / PACKAGED artifact,
+# NOT raw source code. Every SAST job below has a build+package step you MUST
+# adapt to your stack (Java .war/.jar with debug symbols, .NET DLLs+PDBs, a zip
+# of JS/TS incl. node_modules, etc). Packaging spec:
+#   https://docs.veracode.com/r/compilation_packaging
+# The Veracode CLI can auto-package many languages if you'd rather not hand-roll
+# it (`veracode package --source . --output . --trust`) -- see the CLI docs.
+#
+# REQUIRED secrets (Settings -> Secrets and variables -> Actions):
+#   VERACODE_API_ID     Veracode API ID     (used by SAST: pipeline + policy)
+#   VERACODE_API_KEY    Veracode API key
+#   SRCCLR_API_TOKEN    Veracode SCA agent token (SEPARATE credential, for SCA)
+# Optional for SCA outside the Commercial region / with org agents:
+#   SRCCLR_REGION = ER (Europe) or FED (US Federal);  SRCCLR_WORKSPACE_SLUG
+#
+# Pin third-party actions to a full commit SHA in production (see notes).
+# =============================================================================
+
+name: Veracode
+
+on:
+  workflow_dispatch: {}
+  pull_request: {}
+  push:
+    branches: [main, master]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  issues: write          # flaws-to-issues creates GitHub issues
+  pull-requests: write   # PR decoration
+  # security-events: write   # only if you enable the SARIF path (see notes)
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # 1) SAST -- PIPELINE SCAN  (fast; the PR break-build gate)
+  # ---------------------------------------------------------------------------
+  sast-pipeline:
+    name: SAST / pipeline scan (gate)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      # >>> BUILD & PACKAGE YOUR APP (adapt to your stack) <<<
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - name: Build & package
+        run: mvn -B clean package --file pom.xml
+        # produces e.g. target/app.war -- reference that file below
+
+      - name: Veracode Pipeline Scan
+        uses: veracode/Veracode-pipeline-scan-action@v1.0.21
+        with:
+          vid: ${{ secrets.VERACODE_API_ID }}
+          vkey: ${{ secrets.VERACODE_API_KEY }}
+          file: "target/app.war"            # <-- YOUR packaged artifact
+          fail_build: true                   # FAIL GATE
+          fail_on_severity: "Very High, High"
+          # request_policy: "MyPolicy"       # rate findings against a platform policy
+          # baseline_file: "baseline.json"   # report only net-new findings vs a baseline
+
+      - name: Import findings to Issues + PR (visibility)
+        if: always()                         # runs even after the gate fails above
+        uses: veracode/veracode-flaws-to-issues@v2
+        with:
+          scan-results-json: "results.json"  # written by the pipeline scan step
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          fail_build: false                  # don't double-fail; scan already gated
+
+  # ---------------------------------------------------------------------------
+  # 2) SAST -- UPLOAD & SCAN  (full Policy Scan of record; compliance)
+  #     Async + slow -> run on push to main only, not on PRs.
+  # ---------------------------------------------------------------------------
+  sast-policy:
+    name: SAST / policy scan
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      # >>> SAME build+package as above <<<
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - name: Build & package
+        run: mvn -B clean package --file pom.xml
+
+      - name: Veracode Upload and Scan
+        uses: veracode/veracode-uploadandscan-action@0.2.10
+        with:
+          appname: ${{ github.repository }}
+          createprofile: true
+          filepath: "target/app.war"         # <-- YOUR packaged artifact
+          version: "${{ github.run_id }}-${{ github.run_attempt }}"
+          vid: ${{ secrets.VERACODE_API_ID }}
+          vkey: ${{ secrets.VERACODE_API_KEY }}
+          # policy: "Veracode Recommended High"   # assign a policy on profile creation
+          # sandboxname: "ci-sandbox"             # send to a sandbox instead of policy
+          # scantimeout: 30                        # minutes to wait for results
+      # This kicks off the policy scan of record; results appear in the Veracode
+      # platform. To also gate on / import policy findings, add a follow-up step
+      # using veracode/veracode-flaws-to-issues with the policy Findings JSON.
+
+  # ---------------------------------------------------------------------------
+  # 3) SCA -- agent-based dependency scan  (gates on CVSS)
+  # ---------------------------------------------------------------------------
+  sca:
+    name: SCA / dependencies
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      # If SCA needs to resolve dependencies, set up your toolchain here
+      # (e.g. actions/setup-java / setup-node / setup-python) so srcclr can build.
+
+      - name: Veracode SCA
+        uses: veracode/veracode-sca@v2
+        env:
+          SRCCLR_API_TOKEN: ${{ secrets.SRCCLR_API_TOKEN }}
+          # SRCCLR_REGION: ER            # uncomment for Europe (or FED for US Federal)
+          # SRCCLR_WORKSPACE_SLUG: ...   # required only for org-level agents
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          create-issues: true
+          fail-on-cvss: 7                # FAIL GATE: fail on any dep vuln CVSS >= 7
+          min-cvss-for-issue: 4          # only file issues for CVSS >= 4
+          # quick: true                  # faster, shallower scan
