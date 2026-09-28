@@ -1,26 +1,203 @@
+# =============================================================================
+# Security pipeline  (SAST + SCA + IaC + Secrets + DAST + a single fail gate)
+#
+# Jobs:
+#   1) secret-scan   Gitleaks              -> fails if secrets are committed
+#   2) sast-semgrep  Semgrep (your scan)   -> fails on blocking findings
+#   3) sast-codeql   CodeQL (GitHub-native)-> results in the Security tab
+#   4) sca-trivy     Trivy fs scan         -> deps + IaC/misconfig + secrets
+#   5) dast-zap      OWASP ZAP baseline    -> needs a RUNNING app (template)
+#   6) security-gate aggregate check       -> one required check for branch rules
+#
+# NOTE on pinning: actions are pinned to version tags below for readability.
+# For a *security* pipeline you should pin third-party actions to a full commit
+# SHA (e.g. `uses: owner/action@<40-char-sha>  # v0.36.0`). This is exactly what
+# would have protected users during the March-2026 aquasecurity/trivy-action
+# supply-chain compromise. Dependabot can keep SHA pins up to date for you.
+# =============================================================================
+
+name: Security
+
 on:
   workflow_dispatch: {}
   pull_request: {}
   push:
-    branches:
-    - main
-    - master
-    paths:
-    - .github/workflows/semgrep.yml
-  schedule:
-  # random HH:MM to avoid a load spike on GitHub Actions at  00:00
-  - cron: 4 16 * * *
-name: Semgrep
+    branches: [main, master]
+ # schedule:
+    # random HH:MM to avoid the 00:00 load spike on GitHub Actions
+  #  - cron: "4 16 * * *"
+
+# Cancel superseded runs on the same ref to save minutes.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# Least-privilege defaults for every job (individual jobs can widen if needed).
+permissions:
+  contents: read          # checkout
+  security-events: write  # upload SARIF to the Security / code-scanning tab
+  actions: read           # required by CodeQL on private repos
+  # pull-requests: write  # uncomment if you want tools to comment on PRs
+
 jobs:
-  semgrep:
-    name: semgrep/ci
+  # ---------------------------------------------------------------------------
+  # 1) SECRET SCANNING  (Gitleaks)
+  # ---------------------------------------------------------------------------
+  secret-scan:
+    name: Secrets / gitleaks
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    env:
-      SEMGREP_APP_TOKEN: ${{ secrets.SEMGREP_APP_TOKEN }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0        # full history so gitleaks scans every commit
+      - name: Gitleaks
+        uses: gitleaks/gitleaks-action@v3
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # GITLEAKS_LICENSE is REQUIRED for organization-owned repos
+          # (free for personal accounts). Get one at https://gitleaks.io
+          # GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }}
+      # FAIL GATE: gitleaks exits non-zero when a secret is found -> job fails.
+
+  # ---------------------------------------------------------------------------
+  # 2) SAST  (Semgrep)  -- your existing scan, with an explicit gate
+  # ---------------------------------------------------------------------------
+  sast-semgrep:
+    name: SAST / semgrep
+    runs-on: ubuntu-latest
     container:
       image: semgrep/semgrep
+    env:
+      SEMGREP_APP_TOKEN: ${{ secrets.SEMGREP_APP_TOKEN }}
     steps:
-    - uses: actions/checkout@v4
-    - run: semgrep ci
+      - uses: actions/checkout@v5
+      - name: Semgrep CI
+        run: semgrep ci
+        # FAIL GATE: `semgrep ci` exits non-zero on *blocking* findings, as
+        # defined by your Semgrep AppSec Platform policy (Block/Comment/Monitor).
+        #
+        # No Semgrep account, or you want a hard local gate regardless of policy?
+        # Replace the line above with:
+        #   run: semgrep scan --config auto --error --severity ERROR
+
+  # ---------------------------------------------------------------------------
+  # 3) SAST  (CodeQL)  -- GitHub-native, deep dataflow / taint analysis
+  # ---------------------------------------------------------------------------
+  sast-codeql:
+    name: SAST / codeql
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # >>> EDIT to match your repo's languages <<<
+        # Valid values: actions, c-cpp, csharp, go, java-kotlin,
+        #               javascript-typescript, python, ruby, rust, swift
+        language: [python]
+    steps:
+      - uses: actions/checkout@v5
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v4
+        with:
+          languages: ${{ matrix.language }}
+          queries: security-and-quality   # broadest built-in query suite
+      # COMPILED languages (java, c/c++, c#, go, swift): autobuild tries to build.
+      # If autobuild fails, delete this step and add your real build commands.
+      - name: Autobuild
+        uses: github/codeql-action/autobuild@v4
+      - name: Analyze
+        uses: github/codeql-action/analyze@v4
+      # NOTE: `analyze` does NOT fail on findings by itself. CodeQL's PR gate is
+      # configured in Settings -> Code security -> "Check failure" severity, and
+      # enforced via branch protection (see the file the assistant sent alongside).
+
+  # ---------------------------------------------------------------------------
+  # 4) SCA + IaC/misconfig + secrets  (Trivy filesystem scan)
+  # ---------------------------------------------------------------------------
+  sca-trivy:
+    name: SCA + IaC / trivy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Trivy scan (deps + IaC + secrets)
+        # Tag naming for this action is 0.36.0 (some docs show v0.36.0). Pin to a
+        # full commit SHA in production -- see the header note about the compromise.
+        uses: aquasecurity/trivy-action@0.36.0
+        with:
+          scan-type: fs
+          scanners: vuln,secret,misconfig   # SCA + secret + IaC in one pass
+          format: sarif
+          output: trivy-results.sarif
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true              # only flag issues that have a fix
+          exit-code: "1"                    # FAIL GATE: non-zero on CRITICAL/HIGH
+      - name: Upload Trivy SARIF
+        if: always()                        # upload even when the gate above fails
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: trivy-results.sarif
+          category: trivy
+
+  # ---------------------------------------------------------------------------
+  # 5) DAST  (OWASP ZAP baseline)  -- REQUIRES A RUNNING APP
+  # ---------------------------------------------------------------------------
+  dast-zap:
+    name: DAST / zap
+    runs-on: ubuntu-latest
+    # DAST needs a live target, so it does NOT run on every PR by default.
+    # Default triggers: manual dispatch + the nightly schedule.
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule'
+    permissions:
+      contents: read
+      issues: write        # ZAP maintains a GitHub issue with its findings
+    steps:
+      - uses: actions/checkout@v5
+
+      # >>> YOU MUST PROVIDE A RUNNING TARGET <<<
+      # Option A: build & start your app on the runner, then scan localhost.
+      # Option B: point `target` at a deployed staging URL you control.
+      #
+      # Example (edit for your stack), then set target to http://localhost:8080:
+      # - run: docker compose up -d
+      # - name: Wait for app to be healthy
+      #   run: |
+      #     for i in $(seq 1 30); do
+      #       curl -sf http://localhost:8080/health && exit 0
+      #       sleep 2
+      #     done
+      #     echo "App did not become healthy" && exit 1
+
+      - name: ZAP Baseline Scan
+        uses: zaproxy/action-baseline@v0.15.0
+        with:
+          target: "https://staging.example.com"   # <-- CHANGE ME
+          fail_action: true                        # FAIL GATE: fail on alerts
+          cmd_options: "-a"                        # include alpha passive rules
+          # rules_file_name: .zap/rules.tsv        # tune IGNORE/WARN/FAIL per rule
+      # Baseline = passive & safe. For active attack testing use
+      # zaproxy/action-full-scan or zaproxy/action-api-scan -- ONLY against
+      # targets you own and after checking with your host/CDN.
+
+  # ---------------------------------------------------------------------------
+  # 6) AGGREGATE FAIL GATE  -- make THIS the single required check
+  # ---------------------------------------------------------------------------
+  security-gate:
+    name: Security gate
+    runs-on: ubuntu-latest
+    if: always()
+    # DAST is excluded because it only runs on schedule/dispatch.
+    needs: [secret-scan, sast-semgrep, sast-codeql, sca-trivy]
+    steps:
+      - name: Enforce results
+        run: |
+          echo "secret-scan:  ${{ needs.secret-scan.result }}"
+          echo "sast-semgrep: ${{ needs.sast-semgrep.result }}"
+          echo "sast-codeql:  ${{ needs.sast-codeql.result }}"
+          echo "sca-trivy:    ${{ needs.sca-trivy.result }}"
+          if [ "${{ needs.secret-scan.result }}"  != "success" ] || \
+             [ "${{ needs.sast-semgrep.result }}" != "success" ] || \
+             [ "${{ needs.sast-codeql.result }}"  != "success" ] || \
+             [ "${{ needs.sca-trivy.result }}"    != "success" ]; then
+            echo "::error::One or more security scans failed. Blocking merge."
+            exit 1
+          fi
+          echo "All security scans passed."
