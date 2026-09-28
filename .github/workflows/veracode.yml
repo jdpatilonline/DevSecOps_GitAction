@@ -1,22 +1,23 @@
 # =============================================================================
-# Veracode CLI -- static scan (GitHub Actions)
+# Veracode -- SAST + Container/IaC + SCA, all via CLI tooling
 #
-# The `veracode` CLI runs the same static/pipeline scan engine as the
-# Veracode-pipeline-scan-action, but the one binary also does:
-#   veracode package        auto-package many languages for scanning
-#   veracode scan           container image + IaC + secrets
-#   veracode dynamic scan   DAST
-#   veracode fix            auto-remediation
-# So you can standardize on this instead of separate actions.
+# IMPORTANT: two different binaries are involved.
+#   `veracode`  (main CLI)   -> static scan (SAST)  AND  scan --type ... (IaC/
+#                               Container/secrets). One binary, one credential
+#                               pair (VERACODE_API_KEY_ID / _SECRET).
+#   `srcclr`    (SCA agent)  -> Software Composition Analysis. A SEPARATE
+#                               binary/installer with its OWN credential
+#                               (SRCCLR_API_TOKEN). Veracode has not merged
+#                               SCA scanning into the main `veracode` binary --
+#                               only `veracode fix sca` (auto-remediation)
+#                               *consumes* the SCA results.json afterwards.
 #
-# Static analysis still needs a COMPILED/PACKAGED artifact (see the build step).
-#
-# REQUIRED secrets:  reuse the same Veracode API creds as before.
-#   VERACODE_API_ID   -> exposed to the CLI as VERACODE_API_KEY_ID
-#   VERACODE_API_KEY  -> exposed to the CLI as VERACODE_API_KEY_SECRET
+# REQUIRED secrets:
+#   VERACODE_API_ID / VERACODE_API_KEY   -> SAST + IaC/Container
+#   SRCCLR_API_TOKEN                     -> SCA (separate credential)
 # =============================================================================
 
-name: Veracode CLI (static)
+name: Veracode (SAST + IaC + SCA)
 
 on:
   workflow_dispatch: {}
@@ -32,46 +33,90 @@ permissions:
   contents: read
 
 jobs:
-  static-scan:
-    name: Veracode static scan (CLI)
+  # ---------------------------------------------------------------------------
+  # 1) SAST  -- `veracode static scan`  (main CLI)
+  # ---------------------------------------------------------------------------
+  sast:
+    name: SAST (veracode static)
     runs-on: ubuntu-latest
     env:
-      # The CLI reads these exact names; map them from your existing secrets.
       VERACODE_API_KEY_ID: ${{ secrets.VERACODE_API_ID }}
       VERACODE_API_KEY_SECRET: ${{ secrets.VERACODE_API_KEY }}
     steps:
       - uses: actions/checkout@v5
 
-      # 1) Build & package your app into a scannable artifact (adapt to your stack).
       - uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: "17"
+        with: { distribution: temurin, java-version: "17" }
       - name: Build & package
-        run: mvn -B clean package        # produces e.g. target/verademo.war
+        run: mvn -B clean package        # -> target/verademo.war (adapt to your stack)
 
-      # 2) Install the Veracode CLI. NOTE: `curl | sh` runs a remote script -- it's
-      #    the vendor's official installer, but for hardening consider pinning a
-      #    CLI version / verifying a checksum, or gating egress with harden-runner.
       - name: Install Veracode CLI
         run: curl -fsS https://tools.veracode.com/veracode-cli/install | sh
-        # The installer drops the `veracode` binary in the workspace -> ./veracode
 
-      # 3) (Optional) Let the CLI auto-package instead of building above:
-      # - name: Auto-package
-      #   run: ./veracode package --source . --output . --trust
+      - name: SAST scan (gate)
+        run: ./veracode static scan target/verademo.war --results-file sast-results.json
+        # Non-zero exit on policy failure fails the build.
 
-      # 4) Static scan. The CLI returns a non-zero exit when the scan fails your
-      #    Veracode policy, which breaks the build = the FAIL GATE.
-      - name: Veracode static scan
-        run: ./veracode static scan target/verademo.war --results-file results.json
-        # For an explicit severity gate independent of policy, add a fail flag
-        # (confirm exact flag/values with `./veracode static scan --help`):
-        #   ./veracode static scan target/verademo.war --results-file results.json --fail-on-severity high
-
-      - name: Upload results
+      - uses: actions/upload-artifact@v4
         if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: veracode-results
-          path: results.json
+        with: { name: sast-results, path: sast-results.json }
+
+  # ---------------------------------------------------------------------------
+  # 2) Container / IaC / secrets  -- `veracode scan --type ...`  (same main CLI)
+  # ---------------------------------------------------------------------------
+  iac-container:
+    name: IaC + Container (veracode scan)
+    runs-on: ubuntu-latest
+    env:
+      VERACODE_API_KEY_ID: ${{ secrets.VERACODE_API_ID }}
+      VERACODE_API_KEY_SECRET: ${{ secrets.VERACODE_API_KEY }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install Veracode CLI
+        run: curl -fsS https://tools.veracode.com/veracode-cli/install | sh
+
+      - name: IaC scan (Dockerfiles, k8s manifests, Terraform, CFN)
+        run: |
+          ./veracode scan --source . --type directory \
+            --format json --output iac-results.json
+        # Add --policy path/to/policy-container-scan.rego to gate against a
+        # custom Veracode policy; exit code reflects policy pass/fail.
+
+      # Optional: also scan a built container image for CVEs/misconfig/secrets.
+      # - name: Build image
+      #   run: docker build -t myapp:ci .
+      # - name: Container image scan (gate)
+      #   run: ./veracode scan --source myapp:ci --type image --format json --output container-results.json
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: { name: iac-results, path: iac-results.json }
+
+  # ---------------------------------------------------------------------------
+  # 3) SCA  -- `srcclr scan`  (SEPARATE agent CLI, separate credential)
+  # ---------------------------------------------------------------------------
+  sca:
+    name: SCA (srcclr agent)
+    runs-on: ubuntu-latest
+    env:
+      SRCCLR_API_TOKEN: ${{ secrets.SRCCLR_API_TOKEN }}
+      # SRCCLR_REGION: ER   # uncomment for Europe (FED for US Federal)
+    steps:
+      - uses: actions/checkout@v5
+      # Set up whatever toolchain srcclr needs to resolve deps (setup-java/node/etc.)
+
+      - name: Install & run SCA agent
+        run: |
+          curl -sSL https://sca-downloads.veracode.com/ci.sh | sh -s -- \
+            scan --json sca-results.json
+        # Gate on severity yourself, since exit code alone may not reflect CVSS:
+        #   fail if any CRITICAL/HIGH vuln present, e.g. via `jq` on sca-results.json
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: { name: sca-results, path: sca-results.json }
+
+      # Optional follow-up, still using the main veracode binary:
+      # - name: Auto-fix vulnerable dependencies
+      #   run: ./veracode fix sca . --results sca-results.json --remote
