@@ -1,0 +1,141 @@
+# =============================================================================
+# Checkmarx One  --  two integration styles in one file
+#
+#   checkmarx-platform   Uses the official marketplace action
+#                        (checkmarx/ast-github-action). Least code, gives you
+#                        PR decoration + policy break-build out of the box.
+#
+#   checkmarx-local-cli  Installs the Checkmarx One CLI (`cx`) and runs it in
+#                        `run:` steps yourself. More control (custom pre/post
+#                        steps, self-hosted runners, scripted reports).
+#
+# Pick ONE for real use (running both double-scans every push). They're both
+# here so you can compare. Both talk to the SAME Checkmarx One backend: your
+# code is zipped and uploaded, and the scan engines run in Checkmarx One. For a
+# self-hosted / on-prem Checkmarx One instance, just point base_uri / CX_BASE_URI
+# at your server and use a self-hosted runner. (Legacy on-prem *CxSAST* is a
+# different integration -- CxFlow -- ask if that's what you need.)
+#
+# REQUIRED repository secrets (Settings -> Secrets and variables -> Actions):
+#   CX_BASE_URI       your region URL, e.g. https://ast.checkmarx.net
+#                     (EU: https://eu.ast.checkmarx.net, others vary)
+#   CX_TENANT         your Checkmarx One tenant name
+#   CX_CLIENT_ID      OAuth client id  (create under IAM -> OAuth clients)
+#   CX_CLIENT_SECRET  OAuth client secret
+#
+# Pin third-party actions to a full commit SHA in production (see notes).
+# =============================================================================
+
+name: Checkmarx One
+
+on:
+  workflow_dispatch: {}
+  pull_request: {}
+  push:
+    branches: [main, master]
+  # schedule:
+  #   - cron: "17 3 * * *"   # optional nightly full scan
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  security-events: write   # upload SARIF to the Security / code-scanning tab
+  pull-requests: write     # PR decoration (new/fixed findings as a PR comment)
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # A) PLATFORM-BASED  --  official Checkmarx One marketplace action
+  # ---------------------------------------------------------------------------
+  checkmarx-platform:
+    name: Checkmarx One (platform / action)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Checkmarx One scan
+        # Check https://github.com/Checkmarx/ast-github-action/releases for the
+        # newest tag; ideally pin to a full SHA (e.g. @<sha>  # 2.3.30).
+        uses: checkmarx/ast-github-action@2.3.30
+        with:
+          project_name: ${{ github.repository }}
+          branch: ${{ github.head_ref || github.ref_name }}
+          base_uri: ${{ secrets.CX_BASE_URI }}
+          cx_tenant: ${{ secrets.CX_TENANT }}
+          cx_client_id: ${{ secrets.CX_CLIENT_ID }}
+          cx_client_secret: ${{ secrets.CX_CLIENT_SECRET }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}   # enables PR decoration
+          additional_params: >-
+            --scan-types sast,sca,iac-security
+            --report-format sarif
+            --output-path .
+            --output-name cx-result
+            --threshold "sast-high=1; sast-medium=10; sca-high=1; iac-security-high=1"
+          # FAIL GATE: --threshold makes `cx` exit non-zero (breaking the build)
+          # when findings exceed the limits above. Policy violations configured
+          # in Checkmarx One also break the build automatically.
+          # Add ,api-security,containers,secret-detection to --scan-types if
+          # those engines are licensed/enabled for your tenant.
+
+      - name: Upload Checkmarx SARIF
+        if: always()   # upload even when the scan fails the gate
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: cx-result.sarif
+          category: checkmarx-one
+
+  # ---------------------------------------------------------------------------
+  # B) LOCAL / CLI-BASED  --  install `cx` and run it yourself
+  # ---------------------------------------------------------------------------
+  checkmarx-local-cli:
+    name: Checkmarx One (local / CLI)
+    runs-on: ubuntu-latest        # or [self-hosted] for an on-prem runner
+    env:
+      CX_BASE_URI: ${{ secrets.CX_BASE_URI }}
+      CX_TENANT: ${{ secrets.CX_TENANT }}
+      CX_CLIENT_ID: ${{ secrets.CX_CLIENT_ID }}
+      CX_CLIENT_SECRET: ${{ secrets.CX_CLIENT_SECRET }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Install Checkmarx One CLI (cx)
+        run: |
+          set -euo pipefail
+          # Check https://github.com/Checkmarx/ast-cli/releases for the latest
+          # STABLE version (avoid -prerelease / -cli tags).
+          CX_CLI_VERSION="2.3.51"
+          curl -fsSL -o cx.tar.gz \
+            "https://github.com/Checkmarx/ast-cli/releases/download/${CX_CLI_VERSION}/ast-cli_${CX_CLI_VERSION}_linux_x64.tar.gz"
+          tar -xzf cx.tar.gz cx
+          chmod +x cx
+          sudo mv cx /usr/local/bin/cx
+          cx version
+
+      - name: Run scan (break build on threshold)
+        run: |
+          set -euo pipefail
+          cx scan create \
+            --project-name "${{ github.repository }}" \
+            --branch "${{ github.head_ref || github.ref_name }}" \
+            --sources . \
+            --scan-types "sast,sca,iac-security" \
+            --agent "GitHub Action" \
+            --report-format sarif \
+            --output-path . \
+            --output-name cx-result \
+            --threshold "sast-high=1; sca-high=1; iac-security-high=1"
+          # Auth is read from the CX_* env vars above. FAIL GATE: `cx scan create`
+          # returns a non-zero exit code when the threshold is breached.
+
+      - name: Upload Checkmarx SARIF
+        if: always()
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: cx-result.sarif
+          category: checkmarx-cli
